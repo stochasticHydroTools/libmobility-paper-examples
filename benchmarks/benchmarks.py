@@ -126,6 +126,8 @@ def profile_noise(density, l, use_solver="DPStokes", angular=False):
     nit_deterministic, time_deterministic = timeit.Timer(deterministic).autorange()
     # Time is in seconds
     solver.clean()
+    cp.get_default_memory_pool().free_all_blocks()
+    del solver
     return time_deterministic / nit_deterministic
 
 
@@ -165,6 +167,8 @@ def generate_benchmark_data(file_path: str) -> None:
                         (timings_ds["solver"] == s)
                         & (timings_ds["density"] == d)
                         & (timings_ds["box_size"] == l)
+                        & (timings_ds["includes_angular"] == angular)
+                        & (timings_ds["gpu"] == current_gpu_name)
                     ).any()
                     if is_in_ds:
                         print(f"Skipping already computed: {s}, {d:.3f}, {l:.2f}")
