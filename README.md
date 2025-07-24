@@ -32,5 +32,6 @@ TODO: [INSERT PAPER REFERENCE WHEN WE HAVE A DOI]
 
 ## Contributing
 
+- Work in a separated branch and do a pull request to `master` with your changes
 - Add the required dependencies for your scripts to the environment file
 - Create a new folder and place your scripts there, along with a README.md describing how to use them
