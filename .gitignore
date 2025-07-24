@@ -1,0 +1,17 @@
+*~
+*so
+*pycache*
+*.o
+cpp/example
+\#*
+.\#*
+temp
+*_init_*
+*.o
+build
+docs/source/generated
+*.egg-info
+.cache/
+.clangd
+.vscode/
+compile_commands.json

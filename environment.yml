@@ -1,0 +1,15 @@
+name: libmobility-examples
+channels:
+  - conda-forge
+  - stochasticHydroTools
+  - nodefaults
+dependencies:
+  - python
+#  - cuda-version==12.9 # Uncomment if your GPU needs a specific CUDA version
+  - libMobility<2
+  - numpy
+  - cupy
+  - spreadinterp<2
+  - pandas<3
+  - matplotlib<4
+
