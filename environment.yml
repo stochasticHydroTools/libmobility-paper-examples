@@ -9,7 +9,7 @@ dependencies:
   - libMobility<2
   - numpy
   - cupy
+  - scipy
   - spreadinterp<2
   - pandas<3
   - matplotlib<4
-
