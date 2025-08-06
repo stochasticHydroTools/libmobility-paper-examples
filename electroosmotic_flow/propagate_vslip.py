@@ -16,6 +16,21 @@ def inverseMdot(
     atol: Optional[float] = 1e-3,
     rtol: Optional[float] = 1e-3,
 ) -> cp.ndarray:
+    '''
+    Solves the linear system A·x = v using the GMRES iterative method,
+    where A is implicitly represented by the function `mdot`.
+
+    Parameters:
+    v (cp.ndarray): The right-hand side of the linear system.
+    mdot (callable): A function that applies the linear operator A to a vector.
+    x0 (Optional[cp.ndarray]): Initial guess for the solution. Defaults to None.
+    callback (Optional[callable]): Optional callback called at each iteration. Defaults to None.
+    atol (Optional[float]): Absolute tolerance for convergence. Defaults to 1e-3.
+    rtol (Optional[float]): Relative tolerance for convergence. Defaults to 1e-3.
+
+    Returns:
+    cp.ndarray: Solution vector x such that A·x ≈ v.
+    '''
     n = v.size
     op = LinearOperator((n, n), matvec=mdot)
     x, exitCode = gmres(op, v, x0=x0, callback=callback, atol=atol, rtol=rtol, callback_type='legacy')
@@ -28,11 +43,30 @@ def create_electrode_particles(
         v_slip: cp.array,
         hydrodynamicRadius: float,
         n_repeats: int,
-        kernel: dict, # Represent spreadinterp kernel
+        kernel: dict,
         Lx0: Optional[float] = 190,
         Lz0: Optional[float] = 160,
         Ny: Optional[int] = 12,
 ):
+    '''
+    Generates particle positions and velocities for an electrode system by interpolating
+    the slip velocity field and replicating the system along the x-axis.
+
+    Parameters:
+    v_slip (cp.array): Slip velocity values in the x-direction.
+    hydrodynamicRadius (float): Hydrodynamic radius of particles.
+    n_repeats (int): Number of times to replicate the system along the x-axis.
+    kernel (dict): Spreadinterp kernel used for interpolation.
+    Lx0 (Optional[float]): Initial domain length in x. Defaults to 190.
+    Lz0 (Optional[float]): Initial domain length in z. Defaults to 160.
+    Ny (Optional[int]): Number of grid points in y. Defaults to 12.
+
+    Returns:
+    Tuple[List[float], cp.array, cp.array]: 
+        - Domain size after replication [Lx, Ly, Lz],
+        - Particle positions (N x 3),
+        - Particle velocities (N x 3)
+    '''
     field =  cp.zeros((v_slip.size, Ny, 3), dtype=cp.float32)
     field[:,:,0] = cp.tile(v_slip, (Ny, 1)).T
     field = cp.ascontiguousarray(cp.array(field[:, :, cp.newaxis, :]))
@@ -77,12 +111,21 @@ def create_electrode_particles(
 
     return L, pos, vel
 
-def  create_wall_particles(
+def create_wall_particles(
         hydrodynamicRadius: float,
         L: List
 ):
     '''
-    Generate wall particles with zero velocity at x = L[0]/2 and for all y and z
+    Creates wall particles with zero velocity at x = L[0]/2 across all y and z.
+
+    Parameters:
+    hydrodynamicRadius (float): Hydrodynamic radius of wall particles.
+    L (List): Domain dimensions [Lx, Ly, Lz].
+
+    Returns:
+    Tuple[cp.array, cp.array]: 
+        - Wall particle positions (N x 3),
+        - Wall particle velocities (zeros) (N x 3)
     '''
     y = cp.arange(-L[1]/2, L[1]/2, 2*hydrodynamicRadius) + hydrodynamicRadius
     z = cp.arange(0, L[2], 2*hydrodynamicRadius) + hydrodynamicRadius
@@ -97,7 +140,15 @@ def  create_wall_particles(
 
 def init_solver(L: List, hydrodynamicRadius: float):
     '''
-    Initialize the DPSTokes solver
+    Initializes a libmobility DPStokes solver with periodic boundary conditions
+    in x and y and wall boundaries in z.
+
+    Parameters:
+    L (List): Domain dimensions [Lx, Ly, Lz].
+    hydrodynamicRadius (float): Hydrodynamic radius of particles.
+
+    Returns:
+    lm.DPStokes: Configured DPStokes solver object.
     '''
     periodicityXY = 'periodic'
     periodicityZ = 'two_walls'
@@ -118,8 +169,18 @@ def solve_inverse_problem(solver: lm.DPStokes,
                         rtol: Optional[float] = 1e-3,
                         atol: Optional[float] = 0):
     '''
-    Solve the inverse problem to obtain the forcees that generstes the velocities
-    with gmres algorithm
+    Solves the inverse Stokes problem using GMRES to determine the particle forces
+    that produce the observed velocities.
+
+    Parameters:
+    solver (lm.DPStokes): Initialized libmobility DPStokes solver.
+    pos (cp.array): Particle positions (N x 3).
+    vel (cp.array): Particle velocities (N x 3).
+    rtol (Optional[float]): Relative tolerance for GMRES. Defaults to 1e-3.
+    atol (Optional[float]): Absolute tolerance for GMRES. Defaults to 0.
+
+    Returns:
+    cp.array: Computed particle forces (N x 3).
     '''
     solver.setPositions(pos.get())
 
@@ -139,9 +200,20 @@ def solve_inverse_problem(solver: lm.DPStokes,
 
 def create_tracer_particles(Lx_min, Lx_max, Lz_min, Lz_max, Nx, Nz):
     '''
-    create tracer particle in a square lattice to sample the fluid
+    Creates tracer particles arranged on a 2D lattice (x-z plane) at y=0 
+    to sample fluid velocity.
+
+    Parameters:
+    Lx_min (float): Minimum x-coordinate.
+    Lx_max (float): Maximum x-coordinate.
+    Lz_min (float): Minimum z-coordinate.
+    Lz_max (float): Maximum z-coordinate.
+    Nx (int): Number of tracers along x.
+    Nz (int): Number of tracers along z.
+
+    Returns:
+    cp.array: Tracer particle positions (Nx * Nz x 3).
     '''
-    
     x = cp.linspace(Lx_min, Lx_max, Nx)
     y = cp.array([0])
     z = cp.linspace(Lz_min, Lz_max, Nz)
@@ -153,16 +225,30 @@ def create_tracer_particles(Lx_min, Lx_max, Lz_min, Lz_max, Nx, Nz):
     return tracer_pos
 
 def sample_bulk_velocities(solver: lm.DPStokes,
-                           pos:    cp.array,
+                           pos: cp.array,
                            forces: cp.array,
                            Lx_min: float,
                            Lx_max: float,
                            Lz_min: float,
                            Lz_max: float,
-                           Nx:     int
-                           ):
+                           Nx: int):
     '''
-    Compute Mdot(F) in all the tracers blobs to sample the velocity of the fluid in any pos
+    Samples the fluid velocity field at tracer points by computing M·F using the solver.
+
+    Parameters:
+    solver (lm.DPStokes): Initialized DPStokes solver.
+    pos (cp.array): Particle positions (N x 3).
+    forces (cp.array): Particle forces (N x 3).
+    Lx_min (float): Minimum x for tracer grid.
+    Lx_max (float): Maximum x for tracer grid.
+    Lz_min (float): Minimum z for tracer grid.
+    Lz_max (float): Maximum z for tracer grid.
+    Nx (int): Number of tracers along x-direction.
+
+    Returns:
+    Tuple[np.ndarray, np.ndarray]: 
+        - Grid positions of tracers [Nx, 1, Nz, 3],
+        - Corresponding velocities [Nx, 1, Nz, 3]
     '''
     Nz = int(Nx/(Lx_max - Lx_min)*(Lz_max - Lz_min)) # To sample a square lattice
     tracer_pos = create_tracer_particles(Lx_min, Lx_max, Lz_min, Lz_max, Nx, Nz)
@@ -177,6 +263,19 @@ def sample_bulk_velocities(solver: lm.DPStokes,
 
 # Plotting the streamlines
 def plotter(grid_pos, grid_vel):
+    '''
+    Generates a streamline plot and a velocity profile comparison against
+    experimental data.
+
+    Parameters:
+    grid_pos (np.ndarray): Grid positions of tracers [Nx, 1, Nz, 3].
+    grid_vel (np.ndarray): Tracer velocities [Nx, 1, Nz, 3].
+
+    Returns:
+    Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]: 
+        - Streamline plot figure,
+        - Velocity profile figure.
+    '''
     u = grid_vel[:,0,:,0].get().T
     v = grid_vel[:,0,:,2].get().T
     color = np.sqrt(u*u+v*v)
@@ -190,8 +289,6 @@ def plotter(grid_pos, grid_vel):
     ax.set_aspect('equal')
     ax.set_ylabel(r'z ($\mu$m)',fontsize=fontsize)
     ax.set_xlabel(r'x ($\mu$m)',fontsize=fontsize)
-    ax.set_yticks([0, 50, 100, 150])
-    ax.set_xticks([-150, -75, 0, 75, 150])
     ax.tick_params(labelsize=fontsize)
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="4%",pad=0.05)
@@ -237,9 +334,33 @@ def libmobility_electroosmotic_flow(
         Lz_min_trac: float,
         Lz_max_trac: float,
         Nx_trac: int,
-        kernel: dict, # Represent spreadinterp kernel
-        Ny: Optional[int] = 12 # Number of cells in the y direction. Determines Ly. Should be greater than the gaussian widhth.
+        kernel: dict,
+        Ny: Optional[int] = 12
         ):
+    '''
+    Simulates electroosmotic flow using the libmobility library and generates
+    streamline and velocity profile plots to compare with P. Garcia-Sanchez results.
+
+    Parameters:
+    v_slip (cp.array): Slip velocities in the x-direction.
+    hydrodynamicRadius (float): Hydrodynamic radius of particles.
+    n_repeats (int): Number of times to replicate the particle system along x.
+    Lx0 (float): Initial domain size in x.
+    Lz0 (float): Initial domain size in z.
+    Lx_min_trac (float): Minimum x for tracer region.
+    Lx_max_trac (float): Maximum x for tracer region.
+    Lz_min_trac (float): Minimum z for tracer region.
+    Lz_max_trac (float): Maximum z for tracer region.
+    Nx_trac (int): Number of tracer points along x.
+    kernel (dict): Spreadinterp kernel for interpolation.
+    Ny (Optional[int]): Grid size in y-direction (affects Ly). Defaults to 12.
+
+    Returns:
+    Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]: 
+        - Streamline plot,
+        - Velocity profile plot
+    '''
+
 
     L, pos, vel = create_electrode_particles(v_slip=v_slip,
                                             hydrodynamicRadius=hydrodynamicRadius,
