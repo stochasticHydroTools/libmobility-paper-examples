@@ -9,19 +9,26 @@ import pyamg
 
 
 def main():
+    N = 12
+    phi = 0.3
+    run(phi, N)
+
+
+def run(phi, N):
     struct_dir = "structures/"
-    struct_file = struct_dir + "shell_N_162.csv"
+    struct_file = struct_dir + f"shell_N_{N}.csv"
     struct_params, rigid_cfg = load_cfg(struct_file)
-    sep, blobs_per_body, rigid_radius = (
+    sep, blobs_per_body, rigid_rh, rigid_rg = (
         struct_params["sep"],
         struct_params["N"],
         struct_params["Rh"],
+        struct_params["Rg"],
     )
 
     # this number is the goal radius from the sphere generation
     # it is slightly smaller than the final radius so there are no overlaps
     rigid_radius_fact = 0.1
-    rigid_radius *= rigid_radius_fact
+    rigid_rh *= rigid_radius_fact
     rigid_cfg *= rigid_radius_fact
 
     a = 0.5 * sep * rigid_radius_fact
@@ -34,7 +41,7 @@ def main():
     sphere_pos = np.loadtxt(sphere_file, delimiter=" ", skiprows=1)
     N_rigid = np.shape(sphere_pos)[0]
     N_blobs = N_rigid * blobs_per_body
-    phi_exact = N_rigid * (4 / 3) * np.pi * rigid_radius**3 / (L[0] * L[1] * L[2])
+    phi_exact = N_rigid * (4 / 3) * np.pi * rigid_rh**3 / (L[0] * L[1] * L[2])
     print(f"phi exact: {phi_exact:.4f}")
 
     shear = 0.0
@@ -51,9 +58,9 @@ def main():
     cb = initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta)
     solver.setPositions(blobs)
 
-    def apply_A(x, n_blobs):
+    def apply_A(x):
         out = np.zeros_like(x)
-        sz = 3 * n_blobs
+        sz = 3 * N_blobs
         lam = x[0:sz]
         U = x[sz : sz + 6 * N_rigid]
 
@@ -65,14 +72,19 @@ def main():
 
         return out
 
+    def apply_PC(x):
+        sz = 3 * N_blobs
+        out = cb.apply_PC(x[0:sz], x[sz : sz + 6 * N_rigid])
+        return out
+
     N_size = 3 * N_blobs + 6 * N_rigid
     r_y = -gamma * blobs[:, 1]
     RHS = np.zeros(N_size)
     for i in range(N_blobs):
         RHS[3 * i] = r_y[i]
     RHS_norm = np.linalg.norm(RHS)
-    apply_A_partial = partial(apply_A, n_blobs=N_blobs)
-    A = LinearOperator((N_size, N_size), matvec=apply_A_partial, dtype="float64")  # type: ignore
+    A = LinearOperator((N_size, N_size), matvec=apply_A, dtype="float64")  # type: ignore
+    PC = LinearOperator((N_size, N_size), matvec=apply_PC, dtype="float64")  # type: ignore
     tol = 1e-4
     res_list = []
     (Sol, info_precond) = pyamg.krylov.gmres(
@@ -80,11 +92,12 @@ def main():
         (RHS / RHS_norm),
         x0=None,
         tol=tol,
-        M=None,  #
+        M=PC,
         maxiter=min(300, N_size),
         restrt=None,
         residuals=res_list,
     )
+    print("iter count:", len(res_list))
     Sol *= RHS_norm
     lam = Sol[0 : 3 * N_blobs].reshape((N_blobs, 3))
 
@@ -109,8 +122,8 @@ def initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta):
         a=a,
         eta=eta,
         dt=0.0,
-        wall_PC=True,
-        block_PC=False,
+        wall_PC=False,
+        block_PC=True,
     )
 
     return cb
