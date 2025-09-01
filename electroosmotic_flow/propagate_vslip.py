@@ -356,9 +356,15 @@ def libmobility_electroosmotic_flow(
     Ny (Optional[int]): Grid size in y-direction (affects Ly). Defaults to 12.
 
     Returns:
-    Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]: 
-        - Streamline plot,
-        - Velocity profile plot
+    Tuple[np.ndarray, np.ndarray]
+        - Grid positions (i, j, k, dim)
+        - Grid velocities (i, j, k, dim)
+         Details:
+        - i, j, k: indices along the grid in the x, y, and z directions, respectively.
+        - dim (components):
+            - dim = 0 → x-coordinate
+            - dim = 1 → y-coordinate
+            - dim = 2 → z-coordinate
     '''
 
 
@@ -380,10 +386,8 @@ def libmobility_electroosmotic_flow(
     forces = solve_inverse_problem(solver, pos, vel)
 
     grid_pos, grid_vel = sample_bulk_velocities(solver, pos, forces, Lx_min_trac, Lx_max_trac, Lz_min_trac, Lz_max_trac, Nx_trac)
-
+    return grid_pos, grid_vel
     #solver.clean()
-    sp, vp = plotter(grid_pos=grid_pos, grid_vel=grid_vel)
-    return sp, vp
 
 if __name__ == '__main__':
     # Vslip is given in m/s with Vrms = 1V and Lambda = 1
@@ -413,7 +417,7 @@ if __name__ == '__main__':
     Lz_min_trac = 0
     Lz_max_trac = Lz0
 
-    sp, vp = libmobility_electroosmotic_flow(
+    grid_pos, grid_vel = libmobility_electroosmotic_flow(
         v_slip=v_slip,
         hydrodynamicRadius=hydrodynamicRadius,
         n_repeats=n_repeats,
@@ -426,7 +430,8 @@ if __name__ == '__main__':
         Lz_max_trac=Lz_max_trac,
         Nx_trac=Nx_trac
         )
-
+    
+    sp, vp = plotter(grid_pos=grid_pos, grid_vel=grid_vel)
     vp.savefig("velocityProfile.svg", format='svg') # Uncomment to save the figure
     sp.savefig("transientStreamplot.svg", format='svg') # Uncomment to save the figure
 
