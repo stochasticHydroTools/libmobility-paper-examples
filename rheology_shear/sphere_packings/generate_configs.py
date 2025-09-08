@@ -26,14 +26,15 @@ def main():
                 dat[i] = [x, y, z]
 
         with open(out_file, "w") as f:
-            f.write(f"# N: {N}, a: {radius}\n")
+            f.write(f"# N: {N}, a: {0.5*radius}\n")
             np.savetxt(f, dat, fmt="%.6f")
 
         subprocess.run(["rm", "junk.dat"])
 
 
 def write_conf(phi):
-    L = np.array([1.0, 1.0, 1.0])
+    L_val = 1.0
+    L = np.array([L_val, L_val, L_val])
     a = 0.1
 
     N = floor(phi * L[0] * L[1] * L[2] / ((4 / 3) * np.pi * a**3))

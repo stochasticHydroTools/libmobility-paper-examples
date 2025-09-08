@@ -1,32 +1,45 @@
-from functools import partial
 import os
 import numpy as np
 from libMobility import PSE
 from Rigid import RigidBody
-from scipy import spatial
 from scipy.sparse.linalg import LinearOperator
 import pyamg
+import time
+import json
 
 
 def main():
-    N = 12
-    phi = 0.3
-    run(phi, N)
+
+    N_vals = [12, 42, 162, 642, 2562]
+    phi_vals = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5])
+    phi_sim = np.zeros((len(N_vals), len(phi_vals)))
+    s_vals = np.zeros((len(N_vals), len(phi_vals)))
+
+    start = time.time()
+    for i, N in enumerate(N_vals):
+        print(f"------------------- Running N ={N} -------------------")
+        for j, phi in enumerate(phi_vals):
+            stress, phi_exact = run(phi, N)
+            s_vals[i, j] = stress
+            phi_sim[i, j] = phi_exact
+        print(f"N={N} stress:", s_vals[i, :])
+
+    end = time.time()
+    print(f"Total simulation time: {end - start:.2f} seconds")
+
+    save_data(phi_sim, s_vals, N_vals)
 
 
 def run(phi, N):
     struct_dir = "structures/"
     struct_file = struct_dir + f"shell_N_{N}.csv"
     struct_params, rigid_cfg = load_cfg(struct_file)
-    sep, blobs_per_body, rigid_rh, rigid_rg = (
+    sep, blobs_per_body, rigid_rh = (
         struct_params["sep"],
         struct_params["N"],
         struct_params["Rh"],
-        struct_params["Rg"],
     )
 
-    # this number is the goal radius from the sphere generation
-    # it is slightly smaller than the final radius so there are no overlaps
     rigid_radius_fact = 0.1
     rigid_rh *= rigid_radius_fact
     rigid_cfg *= rigid_radius_fact
@@ -35,8 +48,6 @@ def run(phi, N):
     eta = 1.0
     L = [1.0, 1.0, 1.0]
 
-    phi = 0.3
-
     sphere_file = f"sphere_packings/configs/sphere_pack_{phi:0.3g}.txt"
     sphere_pos = np.loadtxt(sphere_file, delimiter=" ", skiprows=1)
     N_rigid = np.shape(sphere_pos)[0]
@@ -44,16 +55,13 @@ def run(phi, N):
     phi_exact = N_rigid * (4 / 3) * np.pi * rigid_rh**3 / (L[0] * L[1] * L[2])
     print(f"phi exact: {phi_exact:.4f}")
 
-    shear = 0.0
     gamma = 1.0
     solver = PSE("periodic", "periodic", "periodic")
-    split = 4 * N_blobs ** (1 / 3) / L[0]  # TODO tinker with the prefactor for speed
-    solver.setParameters(shearStrain=shear, Lx=L[0], Ly=L[1], Lz=L[2], psi=split)
+    split = 2 * N_blobs ** (1 / 3) / L[0]
+    solver.setParameters(shearStrain=0.0, Lx=L[0], Ly=L[1], Lz=L[2], psi=split)
     solver.initialize(hydrodynamicRadius=a, viscosity=eta)
 
     blobs = place_blobs(sphere_pos, rigid_cfg)
-    print("blob radius:", a)
-    print("min dist:", np.min(spatial.distance.pdist(blobs)))
 
     cb = initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta)
     solver.setPositions(blobs)
@@ -78,16 +86,20 @@ def run(phi, N):
         return out
 
     N_size = 3 * N_blobs + 6 * N_rigid
-    r_y = -gamma * blobs[:, 1]
-    RHS = np.zeros(N_size)
+    relative_r = blobs.copy()
+    for i in range(N_rigid):
+        relative_r[i * blobs_per_body : (i + 1) * blobs_per_body] -= sphere_pos[i]
+
+    r_y = -gamma * relative_r[:, 1]
+    RHS = np.zeros(N_size, dtype="float32")
     for i in range(N_blobs):
         RHS[3 * i] = r_y[i]
     RHS_norm = np.linalg.norm(RHS)
-    A = LinearOperator((N_size, N_size), matvec=apply_A, dtype="float64")  # type: ignore
-    PC = LinearOperator((N_size, N_size), matvec=apply_PC, dtype="float64")  # type: ignore
+    A = LinearOperator((N_size, N_size), matvec=apply_A, dtype="float32")  # type: ignore
+    PC = LinearOperator((N_size, N_size), matvec=apply_PC, dtype="float32")  # type: ignore
     tol = 1e-4
     res_list = []
-    (Sol, info_precond) = pyamg.krylov.gmres(
+    (Sol, _) = pyamg.krylov.gmres(
         A,
         (RHS / RHS_norm),
         x0=None,
@@ -106,10 +118,27 @@ def run(phi, N):
         relative_r[i * blobs_per_body : (i + 1) * blobs_per_body] -= sphere_pos[i]
 
     S = np.zeros((3, 3))
+    stress_per_blob = np.zeros((N_blobs, 4))
     for i in range(N_blobs):
-        S += 0.5 * (np.outer(lam[i], relative_r[i]) + np.outer(relative_r[i], lam[i]))
+        S_i = 0.5 * (np.outer(lam[i], relative_r[i]) + np.outer(relative_r[i], lam[i]))
+        S += S_i
+        stress_i = S_i[0, 1] / gamma**2
+        row = np.concatenate((blobs[i], [stress_i]))
+        stress_per_blob[i, :] = row
+
+    # ----- save these to make a blob-wise stress plot -------
+    # with open("stress_per_blob.csv", "w") as f:
+    #     f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
+    #     f.write("# x, y, z, stress\n")
+    #     np.savetxt(f, stress_per_blob, delimiter=",", fmt="%0.6f")
+    # with open("blobs.txt", "w") as f:
+    #     f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
+    #     np.savetxt(f, blobs, delimiter=" ")
+    # plot_params = {"a": a, "n_per_body": blobs_per_body}
+    # json.dump(plot_params, open("plot_params.json", "w"))
 
     print(S)
+    return S[0, 1] / gamma**2, phi_exact
 
 
 def initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta):
@@ -123,7 +152,7 @@ def initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta):
         eta=eta,
         dt=0.0,
         wall_PC=False,
-        block_PC=True,
+        block_PC=False,
     )
 
     return cb
@@ -155,6 +184,35 @@ def load_cfg(file_name):
         cfg = np.loadtxt(f, delimiter=" ")
         params = {"sep": sep, "N": N, "Rg": rg, "Rh": rh}
     return params, cfg
+
+
+def save_data(phi_sim, s_vals, N_vals):
+
+    save_matrix = np.zeros((len(phi_sim), len(N_vals) + 1))
+    save_matrix[:, 0] = phi_sim[0, :]
+    save_matrix[:, 1:] = s_vals.T
+
+    dir = "data/"
+    path_found = False
+    i = 1
+    while not path_found:
+        fname = dir + f"shear_stress_{i}.csv"
+        if not os.path.exists(fname):
+            path_found = True
+        else:
+            i += 1
+    print(f"Saving to {fname}")
+
+    np.savetxt(
+        fname,
+        save_matrix,
+        delimiter=",",
+        fmt="%0.6f",
+        header="phi," + ",".join([f"N={N}" for N in N_vals]),
+    )
+
+    print("phi_sim:", phi_sim)
+    print("s_vals:", s_vals)
 
 
 if __name__ == "__main__":
