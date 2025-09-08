@@ -52,10 +52,16 @@ def init(rt: TkOptiX):
     blobs = blobs + np.array([shift, shift, shift])
     blobs = periodize_r_vecs(blobs, np.array([1.0, 1.0, 1.0]), blobs.shape[0])
 
-    print("max stress", np.max(S_blob), "min stress", np.min(S_blob))
+    print(
+        "max blob coords",
+        np.max(blobs, axis=0),
+        "min blob coords",
+        np.min(blobs, axis=0),
+    )
+    print("max stress", np.max(S_plot), "min stress", np.min(S_plot))
 
     cmap = plt.get_cmap("magma")
-    norm = matplotlib.colors.Normalize(vmin=S_plot.min() + 1.1, vmax=S_plot.max() - 1.0)
+    norm = matplotlib.colors.Normalize(vmin=S_plot.min(), vmax=S_plot.max())
     colors = np.zeros_like(blobs)
     for i, cval in enumerate(S_plot):
         colors[i, :] = cmap(norm(cval))[0:3]
@@ -71,32 +77,18 @@ def init(rt: TkOptiX):
         r=rad_scale * a,
         geom="ParticleSetConstSize",
         c=colors,
-        # c=yellow,
     )
-
-    # rt.setup_camera(
-    #     "cam1",
-    #     cam_type="DoF",  # comment out to use default, pinhole camera
-    #     eye=[-0.173881948, -0.507642865, 0.476800352],
-    #     target=[0.5, 0.5, 0.5],
-    #     # eye=[Lx / 2, Ly / 2, 200],
-    #     up=[0.0, 0.0, 1.0],
-    #     aperture_radius=0.001,
-    #     fov=40.0,
-    #     focal_scale=0.4,
-    # )
-
     rt.setup_camera(
         "cam1",
-        cam_type="DoF",  # comment out to use default, pinhole camera
+        cam_type="DoF",
         # eye=[1.20782828, 1.46808457, 0.321699649],
         eye=[1.18265343, 1.22631025, 1.190259],
         # target=[0.5, 0.5, 0.5],
-        target=[1.0, 1.0, 1.0],
+        target=[1.0, 1.0, 0.7],
         # up=[0.141508535, 0.0782881454, 0.9868365],
         up=[-0.371450275, -0.4319413, 0.8218586],
         aperture_radius=0.001,
-        fov=179.0,
+        fov=105.0,
         focal_scale=0.4,
     )
 

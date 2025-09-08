@@ -1,0 +1,142 @@
+import json
+import matplotlib
+import matplotlib.pyplot as plt
+from functools import partial
+import numpy as np
+from numba import njit, prange
+from plotoptix import TkOptiX
+from plotoptix.materials import m_plastic
+
+
+def init(rt: TkOptiX):
+
+    max_frames = 256
+    rt.set_param(
+        min_accumulation_step=8,
+        max_accumulation_frames=max_frames,
+    )
+
+    rt.set_background(0)
+    rt.set_ambient(0.5)
+
+    rt.setup_material("plastic", m_plastic)
+
+    exposure = 1.1
+    gamma = 2.2
+    rt.set_float("tonemap_exposure", exposure)
+    rt.set_float("tonemap_igamma", 1 / gamma)
+    rt.set_uint("denoiser_start", 32)
+    rt.set_float("denoiser_blend", 0.5)
+    rt.add_postproc("Denoiser")
+
+    scale_fact = 1.0
+
+    colors = np.array(
+        [
+            [0.4767, 0.7453, 0.8163],
+            [0.3433, 0.6134, 0.7656],
+            [0.2593, 0.4796, 0.7186],
+            [0.2458, 0.3399, 0.6394],
+            [0.2195, 0.2214, 0.4564],
+            [0.1298, 0.1258, 0.2548],
+        ]
+    )
+
+    dir = "../structures/"
+    N_vals = [12, 42, 162, 642, 2562]
+    a_vals = np.zeros_like(N_vals, dtype=float)
+
+    blobs = np.empty((np.sum(N_vals), 3))
+    for i, N in enumerate(N_vals):
+        struct_params, cfg = load_cfg(dir + f"shell_N_{N}.csv")
+        a_vals[i] = 0.5 * struct_params["sep"]
+        start = sum(N_vals[0 : N_vals.index(N)])
+        end = start + N
+        blobs[start:end, :] = cfg
+
+    positions = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [6.0, 0.0, 0.0],
+            [1.5, 0.0, -3.0],
+            [4.5, 0.0, -3.0],
+        ]
+    )
+
+    for i in range(len(N_vals)):
+        offset = 3.0 * i
+        start = sum(N_vals[0:i])
+        end = sum(N_vals[0 : i + 1])
+        shift_blobs = blobs[start:end, :] + positions[i]
+        print("blob center", np.mean(shift_blobs, axis=0))
+        print("blob radius", a_vals[i])
+        rt.set_data(
+            f"blobs_{i}",
+            mat="plastic",
+            pos=shift_blobs,
+            r=a_vals[i],
+            geom="ParticleSetConstSize",
+            c=colors[i],
+        )
+
+    for i in range(5):
+        offset = 3.0 * i
+        rt.setup_spherical_light(
+            f"light_{i}",
+            pos=positions[i] + np.array([-1.0, -2.0, 0]),
+            color=30 * np.sqrt(i),
+            radius=0.2,
+            in_geometry=False,
+        )
+
+    rt.setup_camera(
+        "cam1",
+        cam_type="DoF",
+        eye=[3, -5, -1],
+        target=[3, 0, -1],
+        up=[0, 0, 1],
+        aperture_radius=0.001,
+        fov=60.0,
+        focal_scale=0.4,
+    )
+
+
+def save_image(rt, fname):
+    print(rt.get_camera("cam1"))
+    rt.save_image(fname)
+    print("rt completed!")
+
+
+def load_cfg(file_name):
+    with open(file_name, "r") as f:
+        _ = f.readline()
+        params = f.readline().strip().split(",")
+        sep = float(params[0].split(" ")[1])
+        N = int(params[1])
+        rg = float(params[2])
+        rh = int(params[3])
+        cfg = np.loadtxt(f, delimiter=" ")
+        params = {"sep": sep, "N": N, "Rg": rg, "Rh": rh}
+    return params, cfg
+
+
+def main():
+
+    out_fname = "rigid_spheres.png"
+
+    initialize = partial(init)
+    write_image_to_file = partial(save_image, fname=out_fname)
+
+    optix = TkOptiX(
+        on_rt_accum_done=write_image_to_file,
+        on_initialization=initialize,
+        start_now=True,
+        width=4140,
+        height=1024,
+    )
+    print("done")
+
+
+if __name__ == "__main__":
+    main()
