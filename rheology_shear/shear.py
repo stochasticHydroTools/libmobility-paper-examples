@@ -15,11 +15,12 @@ def main():
     phi_sim = np.zeros((len(N_vals), len(phi_vals)))
     s_vals = np.zeros((len(N_vals), len(phi_vals)))
 
+    save_blob_data = True  # set to True to save blob-wise data for 3d stress plot
     start = time.time()
     for i, N in enumerate(N_vals):
         print(f"------------------- Running N ={N} -------------------")
         for j, phi in enumerate(phi_vals):
-            stress, phi_exact = run(phi, N)
+            stress, phi_exact = run(phi, N, save_blob_data)
             s_vals[i, j] = stress
             phi_sim[i, j] = phi_exact
         print(f"N={N} stress:", s_vals[i, :])
@@ -30,7 +31,7 @@ def main():
     save_data(phi_sim, s_vals, N_vals)
 
 
-def run(phi, N):
+def run(phi, N, save_blob_data=False):
     struct_dir = "structures/"
     struct_file = struct_dir + f"shell_N_{N}.csv"
     struct_params, rigid_cfg = load_cfg(struct_file)
@@ -127,15 +128,17 @@ def run(phi, N):
         stress_per_blob[i, :] = row
 
     # ----- save these to make a blob-wise stress plot -------
-    # with open("stress_per_blob.csv", "w") as f:
-    #     f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
-    #     f.write("# x, y, z, stress\n")
-    #     np.savetxt(f, stress_per_blob, delimiter=",", fmt="%0.6f")
-    # with open("blobs.txt", "w") as f:
-    #     f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
-    #     np.savetxt(f, blobs, delimiter=" ")
-    # plot_params = {"a": a, "n_per_body": blobs_per_body}
-    # json.dump(plot_params, open("plot_params.json", "w"))
+    if save_blob_data:
+        dir = "plotting/"
+        with open(dir + "stress_per_blob.csv", "w") as f:
+            f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
+            f.write("# x, y, z, stress\n")
+            np.savetxt(f, stress_per_blob, delimiter=",", fmt="%0.6f")
+        with open(dir + "blobs.txt", "w") as f:
+            f.write(f"# a {a}, n_per_body {blobs_per_body}\n")
+            np.savetxt(f, blobs, delimiter=" ")
+        plot_params = {"a": a, "n_per_body": blobs_per_body}
+        json.dump(plot_params, open(dir + "plot_params.json", "w"))
 
     print(S)
     return S[0, 1] / gamma**2, phi_exact
