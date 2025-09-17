@@ -14,7 +14,6 @@ def init(rt: TkOptiX):
     rt.set_param(
         min_accumulation_step=4,
         max_accumulation_frames=max_frames,
-        # light_shading="Hard",
     )
     rt.set_uint("path_seg_range", 4, 16)
     rt.set_float("scene_epsilon", 0.001)
@@ -81,11 +80,8 @@ def init(rt: TkOptiX):
     rt.setup_camera(
         "cam1",
         cam_type="DoF",
-        # eye=[1.20782828, 1.46808457, 0.321699649],
         eye=[1.18265343, 1.22631025, 1.190259],
-        # target=[0.5, 0.5, 0.5],
         target=[1.0, 1.0, 0.7],
-        # up=[0.141508535, 0.0782881454, 0.9868365],
         up=[-0.371450275, -0.4319413, 0.8218586],
         aperture_radius=0.001,
         fov=105.0,
@@ -96,7 +92,6 @@ def init(rt: TkOptiX):
 @njit(parallel=True, fastmath=True)
 def periodize_r_vecs(r_vecs_np, L, Nb):
     r_vecs = np.copy(r_vecs_np)
-    # r_vecs = np.reshape(r_vecs, (Nb, 3))
     for k in prange(Nb):
         for i in range(3):
             if L[i] > 0:

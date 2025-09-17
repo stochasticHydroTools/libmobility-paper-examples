@@ -29,8 +29,6 @@ def init(rt: TkOptiX):
     rt.set_float("denoiser_blend", 0.5)
     rt.add_postproc("Denoiser")
 
-    scale_fact = 1.0
-
     colors = np.array(
         [
             [0.4767, 0.7453, 0.8163],

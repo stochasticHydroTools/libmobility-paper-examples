@@ -15,7 +15,7 @@ def main():
     phi_sim = np.zeros((len(N_vals), len(phi_vals)))
     s_vals = np.zeros((len(N_vals), len(phi_vals)))
 
-    save_blob_data = True  # set to True to save blob-wise data for 3d stress plot
+    save_blob_data = False  # set to True to save blob-wise data for 3d stress plot
     start = time.time()
     for i, N in enumerate(N_vals):
         print(f"------------------- Running N ={N} -------------------")

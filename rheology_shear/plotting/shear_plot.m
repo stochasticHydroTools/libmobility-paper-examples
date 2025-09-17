@@ -4,14 +4,6 @@ data_dir = "data/";
 figure()
 hold on
 
-% colors = ["#9a090c",
-% "#2d16bd",
-% "#7b00b8",
-% "#e93172",
-% "#4b94de",
-% "#d96ff2",
-% "#ec8633",
-% "#55c743"];
 ms = 12;
 lw = 5;
 
@@ -19,17 +11,11 @@ n_c = 5;
 n_bot = 2;
 n_top = 2;
 n_tot = n_c + n_bot + n_top;
-colors = ice(n_tot);
+colors = ice(n_tot); % from cmap: https://github.com/tsipkens/cmap
 colors = colors(n_bot:end-n_top, :);
 colors = flipud(colors);
 beta_bright = 0.3;
 beta_ref = -0.4;
-
-% ref_colors = oslo(6);
-% ref_colors = ref_colors(3:end-1, :);
-% ref_colors = matter(n_tot-2);
-% ref_colors = ref_colors(n_bot:end-n_top, :);
-% ref_colors = flipud(ref_colors);
 
 ref_colors = colors;
 
@@ -37,7 +23,6 @@ val = 0.1;
 black = [val, val, val];
 
 
-% dat = readmatrix(data_dir + "shear_stress_1.csv");
 n_runs = 3;
 [phi, dat, var_dat] = average_data(data_dir, n_runs);
 
@@ -70,8 +55,6 @@ eta_analytic = eta_func(phi_grid);
 
 h_ladd = plot(phi_grid, eta_analytic, '-k');
 
-% temp = readmatrix("temp.csv");
-% plot(temp(:,1), 1+temp(:,2), '--k');
 
 ylim([0.5, 7.5]);
 xlim([0, 0.5])
@@ -82,9 +65,7 @@ grid on
 
 xlabel("$\phi$")
 ylabel("$\eta_r$")
-% handles = [h_ladd, ref_handles, handles];
 handles = [handles, ref_handles, h_ladd];
-% legend(handles, ["Ladd (1990)", "m=12 (ref.)", "m=42 (ref.)", "m=162 (ref.)", "m=12", "m=42", "m=162", "m=642", "m=2562"], Location="northwest", NumColumns=2)
 legend(handles, ["m=12", "m=42", "m=162", "m=642", "m=2562", "m=12 (ref.)", "m=42 (ref.)", "m=162 (ref.)",  "Ladd (1990)"], Location="northwest", NumColumns=2)
 
 xticks(0:0.1:0.5)
