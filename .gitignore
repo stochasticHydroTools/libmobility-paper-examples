@@ -15,3 +15,4 @@ docs/source/generated
 .clangd
 .vscode/
 compile_commands.json
+electroosmotic_flow/*.npy
