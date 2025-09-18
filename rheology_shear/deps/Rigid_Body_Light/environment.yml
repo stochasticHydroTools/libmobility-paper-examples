@@ -1,0 +1,13 @@
+name: rigid
+channels:
+  - conda-forge
+dependencies:
+  - scipy
+  - numpy
+  - pyamg
+  - nanobind
+  - matplotlib
+  - numba
+  - cxx-compiler
+  - eigen
+  - pytest

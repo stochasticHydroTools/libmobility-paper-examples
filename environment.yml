@@ -17,6 +17,6 @@ dependencies:
   - numba
   - pip
   - pip:
-    - git+https://github.com/brennansprinkle/Rigid_Body_Light@dev_python_interface
+    - ./rheology_shear/deps/Rigid_Body_Light
     # - plotoptix # uncomment if you want to run the optix.py plotting code
 
