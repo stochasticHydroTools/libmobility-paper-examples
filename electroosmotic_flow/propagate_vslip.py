@@ -6,7 +6,12 @@ import functools
 from typing import List, Optional
 from scipy.sparse.linalg import gmres, LinearOperator
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from cmap import Colormap
+
+GOLD = (255/255, 200/255, 1/255)
+GOLD = (1,1,1)
 
 def inverseMdot(
     v: cp.ndarray,
@@ -46,7 +51,7 @@ def create_electrode_particles(
         kernel: dict,
         Lx0: Optional[float] = 190,
         Lz0: Optional[float] = 160,
-        Ny: Optional[int] = 12,
+        Ny: Optional[int] = 24,
 ):
     '''
     Generates particle positions and velocities for an electrode system by interpolating
@@ -261,40 +266,103 @@ def sample_bulk_velocities(solver: lm.DPStokes,
     grid_vel = np.reshape(total_vel[len(pos):,:], (Nx, 1, Nz, 3)) #Not taking into account the boundary blobs
     return grid_pos, grid_vel
 
+def plot_arrows(strm, ax):
+    '''
+    Plots arrows along the streamlines to indicate flow direction.
+    Parameters:
+    strm: Streamline object from matplotlib's streamplot.
+    ax: Matplotlib axis to plot on.
+    Returns:
+    None
+    '''
+
+    for line in strm.lines.get_segments():
+        x, y = line[:,0], line[:,1]
+
+        indices = np.linspace(0, len(x)-1, 17, dtype=int)
+        # por ejemplo cada 20 puntos
+        if np.abs(x[indices].max()-x[indices].min())>100 or np.abs(y[indices].max()-y[indices].min())>40:  # Verifica si la línea percola
+            x_point = 10000
+            y_point = 10000
+            for i in indices[:-2]:
+                if (x[i]-x_point)**2+(y[i]-y_point)**2 > 30**2:  # Cada 30 unidades de distancia
+                    x_point = x[i]
+                    y_point = y[i]
+                    if (x[i+1]-x[i])**2+(y[i+1]-y[i])**2 > 1e-5:  # Evita flechas en líneas muy cortas
+                        ax.arrow(x[i], y[i], (x[i+1]-x[i]), (y[i+1]-y[i]), head_width=4, head_length=4, fc=GOLD, ec=GOLD)
+                    elif (x[i+2]-x[i])**2+(y[i+2]-y[i])**2 > 1e-5:  # Evita flechas en líneas muy cortas
+                        ax.arrow(x[i], y[i], (x[i+2]-x[i]), (y[i+2]-y[i]), head_width=4, head_length=4, fc=GOLD, ec=GOLD)
+                    else:
+                        continue
+        else:
+            i = indices[10]
+            if (x[i+2]-x[i])**2+(y[i+2]-y[i])**2 > 1e-5:  # Evita flechas en líneas muy cortas
+                ax.arrow(x[i], y[i], (x[i+2]-x[i]), (y[i+2]-y[i]), head_width=4, head_length=4, fc=GOLD, ec=GOLD)
+
 # Plotting the streamlines
-def plotter(grid_pos, grid_vel):
+
+# Función para truncar colormap
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+    new_cmap = mcolors.LinearSegmentedColormap.from_list(
+        f'trunc({cmap.name},{minval:.2f},{maxval:.2f})',
+        cmap(np.linspace(minval, maxval, n)))
+    return new_cmap
+
+def plotter(grid_pos, grid_vel,colorbar=True):
     '''
     Generates a streamline plot and a velocity profile comparison against
     experimental data.
 
     Parameters:
-    grid_pos (np.ndarray): Grid positions of tracers [Nx, 1, Nz, 3].
-    grid_vel (np.ndarray): Tracer velocities [Nx, 1, Nz, 3].
+    grid_pos (np.ndarray): Grid positions of tracers [Nx, Ny, Nz, 3].
+    grid_vel (np.ndarray): Tracer velocities [Nx, Ny, Nz, 3].
 
     Returns:
     Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]: 
         - Streamline plot figure,
         - Velocity profile figure.
     '''
+    #Change the font to computer modern
+    plt.rcParams['mathtext.fontset'] = 'cm'
+    plt.rcParams['font.family'] = 'serif'
+
     u = grid_vel[:,0,:,0].get().T
     v = grid_vel[:,0,:,2].get().T
     color = np.sqrt(u*u+v*v)
-    color[color > 80] = 80  # Set a maximum
+    max_color = 300
+    color[color > max_color] = max_color  # Set a maximums
     streamPlot, ax = plt.subplots(figsize=(12, 6))
-    ax.streamplot(grid_pos[:,0,:,0].get().T, grid_pos[:,0,:,2].get().T, u, v, density=0.8, broken_streamlines=True, color=color ,cmap='hot_r')
+    x_min = grid_pos[:,:,:,0].get().min()
+    x_max = grid_pos[:,:,:,0].get().max()
+    z_min = grid_pos[:,:,:,2].get().min()
+    z_max = grid_pos[:,:,:,2].get().max()
+    cmap = truncate_colormap(Colormap('seaborn:mako').to_mpl(), 0.1, 0.9)
+    ax.imshow(color, extent=(x_min, x_max, z_min, z_max), origin="lower", cmap=cmap)
+    # Add cbar for the imshow
+    if colorbar==True:
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="4%",pad=0.05)    
+        cbar = plt.colorbar(ax.images[0], cax=cax)
+        cbar.ax.tick_params(labelsize=16)
+        cbar.ax.set_ylabel(r'$v(\mu \text{m/s})$', fontsize=16)
 
+    # Streamplot
+    strm = ax.streamplot(grid_pos[:,0,:,0].get().T,
+                  grid_pos[:,0,:,2].get().T,
+                  u, v,
+                  density=0.5,
+                  linewidth=2, arrowsize=0,
+                  broken_streamlines=True,
+                  color=GOLD)
+    plot_arrows(strm, ax)
 
     fontsize = 20
     ax.set_ylim((0, 190))
+    ax.set_xlim((x_min, x_max))
     ax.set_aspect('equal')
-    ax.set_ylabel(r'z ($\mu$m)',fontsize=fontsize)
-    ax.set_xlabel(r'x ($\mu$m)',fontsize=fontsize)
+    ax.set_ylabel(r'$z(\mu \text{m})$',fontsize=fontsize)
+    ax.set_xlabel(r'$x(\mu \text{m})$',fontsize=fontsize)
     ax.tick_params(labelsize=fontsize)
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="4%",pad=0.05)
-    cbar = streamPlot.colorbar(ax.collections[0],cax=cax, shrink=0.95)
-    cbar.ax.tick_params(labelsize=fontsize)
-    cbar.ax.set_ylabel(r'Velocity ($\mu$m/s)', fontsize=fontsize)
 
     # Plotting the velocity profile
     z = grid_pos[30,0,:,2].flatten().get()
@@ -316,8 +384,8 @@ def plotter(grid_pos, grid_vel):
     plt.plot(x_exp, y_exp, 'ko', label='Exp. data from P. Garcia-Sanchez et al.', markersize=7)
     plt.xlim([0, 200])
     plt.ylim([-240, 80])
-    plt.xlabel(r'z ($\mu$m)', fontsize=16)
-    plt.ylabel(r'v ($\mu$m/s)', fontsize=16)
+    plt.xlabel(r'$z(\mu \text{m})$', fontsize=16)
+    plt.ylabel(r'$v(\mu \text{m/s})$', fontsize=16)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
     plt.legend(fontsize=12)
@@ -431,7 +499,35 @@ if __name__ == '__main__':
         Nx_trac=Nx_trac
         )
     
-    sp, vp = plotter(grid_pos=grid_pos, grid_vel=grid_vel)
+    sp, vp = plotter(grid_pos=grid_pos, grid_vel=grid_vel, colorbar=False)
     vp.savefig("velocityProfile.svg", format='svg') # Uncomment to save the figure
     sp.savefig("transientStreamplot.svg", format='svg') # Uncomment to save the figure
+
+    #Number of copies of the system in the x direction. [Number of electrodes = 4*n_repeats]
+    n_repeats = 20
+
+    Lx_min_trac = (n_repeats-4)*Lx0/2
+    Lx_max_trac = n_repeats*Lx0/2
+    Nx_trac = 1000
+    Lz_min_trac = 0
+    Lz_max_trac = Lz0
+
+    grid_pos, grid_vel = libmobility_electroosmotic_flow(
+        v_slip=v_slip,
+        hydrodynamicRadius=hydrodynamicRadius,
+        n_repeats=n_repeats,
+        Lx0=Lx0,
+        Lz0=Lz0,
+        kernel=kernel,
+        Lx_min_trac=Lx_min_trac,
+        Lx_max_trac=Lx_max_trac,
+        Lz_min_trac=Lz_min_trac,
+        Lz_max_trac=Lz_max_trac,
+        Nx_trac=Nx_trac
+        )
+    
+    sp, vp = plotter(grid_pos=grid_pos, grid_vel=grid_vel, colorbar=False)
+    vp.savefig("velocityProfileWall.svg", format='svg') # Uncomment to save the figure
+    sp.savefig("transientStreamplotWall.svg", format='svg') # Uncomment to save the figure
+
 
