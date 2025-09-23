@@ -16,4 +16,5 @@ docs/source/generated
 .vscode/
 compile_commands.json
 electroosmotic_flow/grid_*.npy
+electroosmotic_flow/push*.npy
 electroosmotic_flow/*.svg
