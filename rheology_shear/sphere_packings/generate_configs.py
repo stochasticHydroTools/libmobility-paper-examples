@@ -4,6 +4,7 @@ import subprocess
 
 # this code requires the C++ code linked below to be compiled within the directory C++
 # code: https://torquatocpanel.deptcpanel.princeton.edu/links-and-codes/sphere-packings-registration/
+# article: M. Skoge, A. Donev, F. H. Stillinger and S. Torquato, Packing Hyperspheres in High-Dimensional Euclidean Spaces, Physical Review E 74, 041127 (2006).
 
 
 def main():
