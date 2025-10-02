@@ -12,12 +12,12 @@ dependencies:
   - spreadinterp<2
   - pandas<3
   - matplotlib<4
+  - numba
+  - pyvista
   - scipy
   - pyamg
-  - numba
   # Rigid dependencies below
   - nanobind
-  - numba
   - cxx-compiler
   - eigen
   - pip
