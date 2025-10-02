@@ -15,4 +15,13 @@ dependencies:
   - numba
   - pyvista
   - scipy
+  - pyamg
+  # Rigid dependencies below
+  - nanobind
+  - cxx-compiler
+  - eigen
+  - pip
+  - pip:
+    - ./rheology_shear/deps/Rigid_Body_Light
+    # - plotoptix # uncomment if you want to run the optix.py plotting code in the shear example
 
