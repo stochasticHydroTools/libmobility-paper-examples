@@ -5,7 +5,9 @@ import json
 import os
 import sys
 
-sys.path.append("./lubrication/")
+lub_dir = os.path.dirname(os.path.abspath(__file__)) + "/lubrication/"
+
+sys.path.append(lub_dir)
 from Lubrication import Lubrication
 
 
@@ -58,7 +60,7 @@ def create_solvers(
 
         solver = NBody("open", "open", "single_wall")
         solver.setParameters(wallHeight=0.0)
-        blob_fname = "./lubrication/res_coeffs/res_scalars_blob_nbody_wall_UF.csv"
+        blob_fname = lub_dir + "res_coeffs/res_scalars_blob_nbody_wall_UF.csv"
     elif solver_name == "DPStokes":
         from libMobility import DPStokes
 
@@ -66,11 +68,11 @@ def create_solvers(
         solver.setParameters(
             zmin=0.0, zmax=5 * a, Lx=Lx, Ly=Ly, allowChangingBoxSize=False
         )
-        blob_fname = "./lubrication/res_coeffs/res_scalars_blob_dpstokes_wall_UF.csv"
+        blob_fname = lub_dir + "res_coeffs/res_scalars_blob_dpstokes_wall_UF.csv"
     else:
         raise ValueError(f"Unknown solver name: {solver_name}")
 
-    mb_fname = "./lubrication/res_coeffs/res_scalars_wall_MB_2562.txt"
+    mb_fname = lub_dir + "res_coeffs/res_scalars_wall_MB_2562.txt"
     lub = Lubrication(blob_fname, mb_fname, eta, a, cut=lub_cut)
 
     solver.initialize(viscosity=eta, hydrodynamicRadius=a, tolerance=tol)
