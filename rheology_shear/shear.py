@@ -7,6 +7,9 @@ import pyamg
 import time
 import json
 
+struct_dir = os.path.dirname(os.path.abspath(__file__)) + "/structures/"
+sphere_dir = os.path.dirname(os.path.abspath(__file__)) + "/sphere_packings/configs/"
+
 
 def main():
 
@@ -32,7 +35,6 @@ def main():
 
 
 def run(phi, N, save_blob_data=False):
-    struct_dir = "structures/"
     struct_file = struct_dir + f"shell_N_{N}.csv"
     struct_params, rigid_cfg = load_cfg(struct_file)
     sep, blobs_per_body, rigid_rh = (
@@ -49,7 +51,7 @@ def run(phi, N, save_blob_data=False):
     eta = 1.0
     L = [1.0, 1.0, 1.0]
 
-    sphere_file = f"sphere_packings/configs/sphere_pack_{phi:0.3g}.txt"
+    sphere_file = sphere_dir + f"sphere_pack_{phi:0.3g}.txt"
     sphere_pos = np.loadtxt(sphere_file, delimiter=" ", skiprows=1)
     N_rigid = np.shape(sphere_pos)[0]
     N_blobs = N_rigid * blobs_per_body

@@ -6,7 +6,6 @@ cpp/example
 \#*
 .\#*
 temp
-*_init_*
 *.o
 build
 docs/source/generated
