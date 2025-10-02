@@ -104,7 +104,7 @@ def profile_noise(density, l, use_solver="DPStokes", angular=False):
         pos = pos[(pos[:, 2] > -9) & (pos[:, 2] < 9)]
     numberParticles = pos.shape[0]
     if numberParticles <= 0:
-        return 0.0
+        return 0, 0.0
     if numberParticles > 2_000_000 and "NBody" in use_solver:
         raise ValueError(
             f"Number of particles ({numberParticles}) exceeds the limit for {use_solver} solver."
@@ -126,7 +126,9 @@ def profile_noise(density, l, use_solver="DPStokes", angular=False):
     nit_deterministic, time_deterministic = timeit.Timer(deterministic).autorange()
     # Time is in seconds
     solver.clean()
-    return time_deterministic / nit_deterministic
+    cp.get_default_memory_pool().free_all_blocks()
+    del solver
+    return numberParticles, time_deterministic / nit_deterministic
 
 
 def generate_benchmark_data(file_path: str) -> None:
@@ -165,22 +167,34 @@ def generate_benchmark_data(file_path: str) -> None:
                         (timings_ds["solver"] == s)
                         & (timings_ds["density"] == d)
                         & (timings_ds["box_size"] == l)
+                        & (timings_ds["includes_angular"] == angular)
+                        & (timings_ds["gpu"] == current_gpu_name)
                     ).any()
                     if is_in_ds:
                         print(f"Skipping already computed: {s}, {d:.3f}, {l:.2f}")
                     else:
                         try:
-                            time_deterministic = profile_noise(
+                            number_particles, time_deterministic = profile_noise(
                                 d, l, use_solver=s, angular=angular
                             )
                         except:
                             print(
                                 f"Error profiling {s} with density {d:.3f} and box size {l:.2f}"
                             )
-                            data.append([s, d, l, None, current_gpu_name, angular])
+                            data.append(
+                                [s, d, None, l, None, current_gpu_name, angular]
+                            )
                         else:
                             data.append(
-                                [s, d, l, time_deterministic, current_gpu_name, angular]
+                                [
+                                    s,
+                                    d,
+                                    number_particles,
+                                    l,
+                                    time_deterministic,
+                                    current_gpu_name,
+                                    angular,
+                                ]
                             )
                             print(
                                 f"Box size: {l:.2f}, Time deterministic: {time_deterministic:.4f} s"
@@ -190,6 +204,7 @@ def generate_benchmark_data(file_path: str) -> None:
                             columns=[
                                 "solver",
                                 "density",
+                                "number_particles",
                                 "box_size",
                                 "time_deterministic",
                                 "gpu",

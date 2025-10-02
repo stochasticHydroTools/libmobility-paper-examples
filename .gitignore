@@ -6,7 +6,6 @@ cpp/example
 \#*
 .\#*
 temp
-*_init_*
 *.o
 build
 docs/source/generated
@@ -18,3 +17,4 @@ compile_commands.json
 electroosmotic_flow/grid_*.npy
 electroosmotic_flow/push*.npy
 electroosmotic_flow/*.svg
+figs/
