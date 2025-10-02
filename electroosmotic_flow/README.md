@@ -2,11 +2,9 @@
 
 The scripts in this folder will reproduce the electroosmotic flows plots presented in the article.
 
-To generate the performance data:
+To run the main simulation file:
 
 ```bash
 $ python propagate_vslip.py
 ```
-Two .svg images will be generated.
-
-The notebook runs the code and also has a visualization of the results.
+The two images from the paper will be generated after the simulation is run.
