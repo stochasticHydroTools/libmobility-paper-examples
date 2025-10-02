@@ -1,6 +1,7 @@
 name: libmobility-examples
 channels:
   - conda-forge
+  - stochasticHydroTools
   - nodefaults
 dependencies:
   - python
