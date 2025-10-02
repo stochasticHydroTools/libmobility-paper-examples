@@ -60,8 +60,7 @@ def main():
     )
     is_periodic = solver_name != "NBody"
 
-    # output_dir = utils.get_simulation_dir(solver=solver_name, N=N, L=Lx)
-    output_dir = "TEMP/"
+    output_dir = utils.get_simulation_dir(solver=solver_name, N=N, L=Lx)
     print(f"Output directory: {output_dir}")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -364,7 +363,6 @@ def place_colloids(phi, L, a, mg, kbt):
     beta = kbt / mg
     rng = np.random.default_rng()
 
-    # Generate initial samples
     def sample_positions(n):
         x = rng.uniform(0, L[0], size=n)
         y = rng.uniform(0, L[1], size=n)
@@ -372,7 +370,7 @@ def place_colloids(phi, L, a, mg, kbt):
         return np.stack((x, y, z), axis=1)
 
     pos = sample_positions(N)
-    r_min = a * (2 + 0.02)  # small buffer
+    r_min = a * (2 + 0.02)
 
     noOverlaps = False
     it = 0
@@ -385,7 +383,6 @@ def place_colloids(phi, L, a, mg, kbt):
             noOverlaps = True
             continue
 
-        # Mark all overlapping indices
         overlapping = set()
         for i, j in pairs:
             overlapping.add(i)
@@ -393,7 +390,6 @@ def place_colloids(phi, L, a, mg, kbt):
 
         print(f"Found {len(pairs)} overlaps, resampling {len(overlapping)} particles")
 
-        # Remove and replace overlapping particles
         overlapping = sorted(overlapping)
         pos[overlapping] = sample_positions(len(overlapping))
         it += 1
