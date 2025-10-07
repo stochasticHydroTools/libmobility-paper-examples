@@ -20,6 +20,7 @@ dependencies:
   - jupyter
   - pythonnet
   - mono
+  - tqdm
   # Rigid dependencies below
   - nanobind
   - cxx-compiler
