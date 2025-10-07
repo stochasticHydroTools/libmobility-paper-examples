@@ -6,7 +6,7 @@ The `extracted_data/` directory contains reference data that was extracted from 
 To generate data, run the main simulation file `shear.py`. There are three plotting codes contained within the `plotting/` directory:
 1. `shear_plot.py` will create the viscosity curves at different multiblob resolutions.
 2. `optix.py` will create the 3D visualization of blob-wise stress.
-3. `rigid_spheres.py` will create the visualization of the different rigid multiblob resolutions as the inset. Also requires plotoptix (see above).
+3. `rigid_spheres.py` will create the visualization of the different rigid multiblob resolutions as the inset.
 
 
-`shear.ipynb` is a pre-rendered notebook that calls conducts the simulation and renders the results, calling all of the above.
+`shear.ipynb` is a pre-rendered notebook that runs all of the simulations and renders the results, by calling all of the above.
