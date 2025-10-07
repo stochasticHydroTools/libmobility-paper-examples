@@ -1,7 +1,6 @@
 from functools import partial
 import numpy as np
 
-from plotoptix import NpOptiX as OptiX
 from plotoptix.materials import m_plastic
 import logging
 import os
@@ -61,16 +60,15 @@ def init(rt):
 
     positions = np.array(
         [
-            [0.0, 0.0, 0.0],
-            [3.0, 0.0, 0.0],
-            [6.0, 0.0, 0.0],
-            [1.5, 0.0, -3.0],
-            [4.5, 0.0, -3.0],
+            [1.5, 0.0, 0.0],
+            [4.5, 0.0, 0.0],
+            [0.0, 0.0, -3.0],
+            [3.0, 0.0, -3.0],
+            [6.0, 0.0, -3.0],
         ]
     )
 
     for i in range(len(N_vals)):
-        offset = 3.0 * i
         start = sum(N_vals[0:i])
         end = sum(N_vals[0 : i + 1])
         shift_blobs = blobs[start:end, :] + positions[i]
@@ -86,7 +84,6 @@ def init(rt):
         )
 
     for i in range(5):
-        offset = 3.0 * i
         rt.setup_spherical_light(
             f"light_{i}",
             pos=positions[i] + np.array([-1.0, -2.0, 0]),
@@ -102,7 +99,7 @@ def init(rt):
         target=[3, 0, -1],
         up=[0, 0, 1],
         aperture_radius=0.001,
-        fov=60.0,
+        fov=80.0,
         focal_scale=0.4,
     )
 
@@ -147,16 +144,23 @@ def main(out_fname="rigid_spheres.png"):
     initialize = partial(init)
     write_image_to_file = partial(save_image, fname=out_fname)
 
+    headless = True
+    if headless:
+        from plotoptix import NpOptiX as OptiX
+    else:
+        from plotoptix import TkOptiX as OptiX
+
     optix = OptiX(
         on_rt_accum_done=write_image_to_file,
         on_initialization=initialize,
         start_now=True,
-        width=4140,
+        width=1800,
         height=1024,
     )
-    ACCUM_DONE.wait()
-    optix.close()
-    logger.info("done")
+    if headless:
+        ACCUM_DONE.wait()
+        optix.close()
+        logger.info("done")
 
 
 if __name__ == "__main__":
