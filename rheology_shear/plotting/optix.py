@@ -1,7 +1,6 @@
 from functools import partial
 import numpy as np
 from numba import njit, prange
-from plotoptix import NpOptiX as OptiX  # headless renderer
 from plotoptix.materials import m_plastic
 import matplotlib.pyplot as plt
 import matplotlib.colors
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def init(rt):
 
-    max_frames = 128
+    max_frames = 256
     rt.set_param(
         min_accumulation_step=4,
         max_accumulation_frames=max_frames,
@@ -67,7 +66,8 @@ def init(rt):
     logger.info("max stress %s min stress %s", np.max(S_plot), np.min(S_plot))
 
     cmap = plt.get_cmap("magma")
-    norm = matplotlib.colors.Normalize(vmin=S_plot.min(), vmax=S_plot.max())
+    # chopping off the top and bottom of the colormap gives a nice effect
+    norm = matplotlib.colors.Normalize(vmin=S_plot.min() + 0.3, vmax=S_plot.max() - 0.3)
     colors = np.zeros_like(blobs)
     for i, cval in enumerate(S_plot):
         colors[i, :] = cmap(norm(cval))[0:3]
@@ -87,12 +87,12 @@ def init(rt):
     rt.setup_camera(
         "cam1",
         cam_type="DoF",
-        eye=[1.18265343, 1.22631025, 1.190259],
-        target=[1.0, 1.0, 0.7],
-        up=[-0.371450275, -0.4319413, 0.8218586],
+        eye=[1.47710538, 1.40805268, 0.904297769],
+        target=[1.06813073, 1.01545882, 0.5859939],
+        up=[-0.371695131, -0.31949982, 0.8716436],
         aperture_radius=0.001,
-        fov=105.0,
-        focal_scale=0.4,
+        fov=80.0,
+        focal_scale=20.0,
     )
 
 
@@ -133,6 +133,12 @@ def main(out_fname="optix_scene.png"):
     initialize = partial(init)
     write_image_to_file = partial(save_image, fname=out_fname)
 
+    # set to false for interactive window
+    headless = True
+    if headless:
+        from plotoptix import NpOptiX as OptiX
+    else:
+        from plotoptix import TkOptiX as OptiX
     optix = OptiX(
         on_rt_accum_done=write_image_to_file,
         on_initialization=initialize,
@@ -140,9 +146,10 @@ def main(out_fname="optix_scene.png"):
         width=1024,
         height=1024,
     )
-    ACCUM_DONE.wait()
-    optix.close()
-    logger.info("done")
+    if headless:
+        ACCUM_DONE.wait()
+        optix.close()
+        logger.info("done")
 
 
 if __name__ == "__main__":
