@@ -1,6 +1,10 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 REF_DIR = Path("extracted_data")
 DATA_DIR = Path("data")
@@ -180,7 +184,7 @@ def main():
     ax.set_yticks(YTICKS)
 
     fig.savefig(OUT_FIG, dpi=200)
-    print(f"Wrote {OUT_FIG.resolve()}")
+    logger.info("Wrote %s", OUT_FIG.resolve())
 
 
 if __name__ == "__main__":
