@@ -193,7 +193,7 @@ def load_cfg(file_name):
 
 def save_data(phi_sim, s_vals, N_vals):
 
-    save_matrix = np.zeros((len(phi_sim), len(N_vals) + 1))
+    save_matrix = np.zeros((phi_sim.shape[1], len(N_vals) + 1))
     save_matrix[:, 0] = phi_sim[0, :]
     save_matrix[:, 1:] = s_vals.T
 
