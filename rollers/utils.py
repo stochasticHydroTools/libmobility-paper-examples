@@ -48,15 +48,12 @@ def save_params_json(params, out_dir=None):
 
 def build_neighbor_list(r_vectors, r_cut, eps=0.0):
     # NOTE: took periodicity out, go get it again if u want
-
     r_tree = spatial.cKDTree(
         r_vectors, boxsize=None, balanced_tree=False, compact_nodes=False
     )
-
     pairs = r_tree.query_ball_point(
         r_vectors, r_cut, return_sorted=False, workers=1, eps=eps
     )  # eps has a large effect on performance and can affect accuracy if set incorrectly
-
     offsets = np.cumsum([0] + [len(p) for p in pairs], dtype=int)
     list_of_neighbors = np.fromiter(
         (item for sublist in pairs for item in sublist), dtype=int
