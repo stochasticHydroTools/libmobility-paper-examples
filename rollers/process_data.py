@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import utils
 from pathlib import Path
+import logging
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 """
 This is a helper script to process simulation data from the rollers simulations so that the t* distributions can be plotted using the matlab code.
@@ -43,7 +47,7 @@ def get_tstar_distributions(
             dir = utils.get_simulation_dir(
                 mass_fact, isDeterministic, runIndex=i, loadOnly=True
             )
-            print(f"Processing directory: {dir}")
+            logger.info("Processing directory: %s", dir)
             fname = dir + "positions.csv"
 
             dat = np.loadtxt(fname, delimiter=",")
@@ -53,8 +57,6 @@ def get_tstar_distributions(
             k_min = 0.1 if lowHeight else 0.05
             k_max = 0.25
             percentile = 30.0
-            # if lowHeight and isDeterministic:
-            #     percentile = 50.0
 
             n_steps = pos.shape[0]
             time = dat[0:n_steps, 0]
@@ -63,23 +65,22 @@ def get_tstar_distributions(
             )
             t_star_arr[i] = t_star
 
-            print(f"t_star index: {t_star_ind}, time: {time[t_star_ind]}")
+            logger.info("t_star index: %d, time: %s", t_star_ind, time[t_star_ind])
             pos_t_star = pos[t_star_ind, :]
             pos_0 = pos[0, :]
             dir = utils.get_simulation_dir(mass_fact, isDeterministic)
 
             # Uncomment to save the positions at t* and 2t*
-            # out_dir = dir + "output/"
-            # np.savetxt(
-            #     out_dir + f"pos_t_star_{i}.csv", pos_t_star, delimiter=",", fmt="%.6f"
-            # )
-            # np.savetxt(
-            #     out_dir + f"pos_2t_star_{i}.csv",
-            #     pos[2 * t_star_ind, :],
-            #     delimiter=",",
-            #     fmt="%.6f",
-            # )
-            # exit()
+            out_dir = dir + "output/"
+            np.savetxt(
+                out_dir + f"pos_t_star_{i}.csv", pos_t_star, delimiter=",", fmt="%.6f"
+            )
+            np.savetxt(
+                out_dir + f"pos_2t_star_{i}.csv",
+                pos[2 * t_star_ind, :],
+                delimiter=",",
+                fmt="%.6f",
+            )
 
             max_height = 25 * a if lowHeight else 50 * a
             max_dist = 400 * a if lowHeight else 500 * a
@@ -107,12 +108,12 @@ def get_tstar_distributions(
 
         height_int = np.trapezoid(heights_dist, x=z_bins[:-1])
         pos_int = np.trapezoid(pos_dist, x=dist_bins[:-1])
-        print(f"Height integral: {height_int}, Position integral: {pos_int}")
+        logger.info("Height integral: %s, Position integral: %s", height_int, pos_int)
 
         dir = utils.get_simulation_dir(mass_fact, isDeterministic)
         out_dir = dir + "output/"
         Path(out_dir).mkdir(parents=True, exist_ok=True)
-        print(f"Saving output to: {out_dir}")
+        logger.info("Saving output to: %s", out_dir)
 
         z_bins_start_mid = (z_bins_start[1:] + z_bins_start[:-1]) / 2
 
@@ -191,7 +192,7 @@ def get_t_star(pos, time, k_min, k_max, n_steps, percentile, plot_dir=None):
             plt.close()
 
     # NOTE exclude first step because it is super peaked due to the initial condition on a grid
-    print(I_vals)
+    logger.debug("I_vals: %s", I_vals)
     t_star_ind = np.argmax(I_vals[1:])
     t_star = time[t_star_ind]
 
@@ -306,7 +307,7 @@ def parse_to_spunto(data, Lx, Ly, Lz, a):
         for i in range(0, n_steps, 10):
             if i > 0:
                 f.write("#\n")
-            print(i)
+            logger.debug("frame index: %d", i)
 
             # f.write("# frame = " + str(i) + "\n")
             for j in range(n_colloids):

@@ -3,10 +3,16 @@ Surface plot.
 """
 
 from functools import partial
+import os
 import sys
 import numpy as np
+import logging
+from PIL import Image
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 import plotoptix.enums as enums
-from plotoptix import TkOptiX
+from plotoptix import NpOptiX as Optix
 from plotoptix.utils import map_to_colors, simplex
 from plotoptix.materials import m_eye_normal_cos
 from plotoptix.materials import (
@@ -21,11 +27,29 @@ from plotoptix.materials import (
     m_transparent_diffuse,
 )
 
+from threading import Event
+
+event = Event()
+
 
 def save_image(rt, fname):
-    print(rt.get_camera("cam1"))
-    rt.save_image(fname)
-    print("rt completed!")
+    """Headless save: fetch OptiX framebuffer and write PNG/JPG with Pillow."""
+    logger.debug("camera: %s", rt.get_camera("cam1"))
+
+    img = rt.get_rt_output()
+    if img is None:
+        raise RuntimeError("rt.get_rt_output() returned None (no framebuffer).")
+    if img.ndim != 3 or img.shape[-1] not in (3, 4):
+        raise ValueError(f"Unexpected image shape from OptiX: {img.shape}")
+    if img.shape[-1] == 4:
+        img = img[..., :3]
+    if img.dtype is not np.uint8:
+        img = np.clip(img, 0, 255).astype(np.uint8)
+
+    Image.fromarray(img, mode="RGB").save(fname)
+    logger.info("Saved image to %s", os.path.abspath(fname))
+    event.set()
+    logger.info("rt completed!")
 
 
 def chebs(a, b, n):
@@ -34,7 +58,7 @@ def chebs(a, b, n):
     return 3.0 * (b - a) * x + 3.0 * (b + a)
 
 
-def init(rt: TkOptiX, hg, t_star):
+def init(rt: Optix, hg, t_star):
 
     yellow = np.array([255.0 / 255.0, 174.0 / 255.0, 26.0 / 255.0])
     teal = np.array([67, 179, 174]) / 255.0
@@ -138,27 +162,11 @@ def init(rt: TkOptiX, hg, t_star):
             c=stoc_color,
         )
 
-    # rt.setup_camera(
-    #     "cam1",
-    #     cam_type="DoF",  # comment out to use default, pinhole camera
-    #     eye=[Lx / 2, Ly / 2, 500],
-    #     target=[Lx / 2, Ly / 2, 2],
-    #     # eye=[Lx / 2, Ly / 2, 200],
-    #     # aperture_radius=0.2,
-    #     # fov=20,
-    #     # focal_scale=0.2,
-    # )
-    # rt.camera_rotate_eye_local((0, 0, -np.pi / 2))
-
     rt.setup_camera(
         "cam1",
         cam_type="DoF",  # comment out to use default, pinhole camera
         eye=[Lx / 2, 200 * a, 30],
         target=[Lx / 2, 10, 10],
-        # eye=[Lx / 2, Ly / 2, 200],
-        # aperture_radius=0.2,
-        # fov=20,
-        # focal_scale=0.2,
     )
 
     # scale rectangle
@@ -173,25 +181,22 @@ def init(rt: TkOptiX, hg, t_star):
     )
 
 
-def main():
-    hg = 61
-    # hg = 15
-    # t_star = "t_star"
-    t_star = "2t_star"
+def main(hg=61, t_star="2t_star", out_fname="TEMP.png"):
     # out_fname = f"img/roller_hg{hg}_{t_star}.png"
     out_fname = "TEMP.png"
 
     initialize = partial(init, hg=hg, t_star=t_star)
     write_image_to_file = partial(save_image, fname=out_fname)
 
-    optix = TkOptiX(
+    optix = Optix(
         on_rt_accum_done=write_image_to_file,
         on_initialization=initialize,
         start_now=True,
         width=4140,
         height=1024,
     )
-    print("done")
+    event.wait()
+    logger.info("done")
 
 
 def make_rectangle(x0, y0, lx, ly, z=0):
