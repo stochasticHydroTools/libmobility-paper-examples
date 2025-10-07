@@ -325,8 +325,6 @@ def plotter(grid_pos, grid_vel,colorbar=True):
     #Change the font to computer modern
     plt.rcParams['mathtext.fontset'] = 'cm'
     plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['text.usetex'] = True
-    plt.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
     u = grid_vel[:,0,:,0].get().T
     v = grid_vel[:,0,:,2].get().T
