@@ -1,14 +1,17 @@
-import json
-import matplotlib
-import matplotlib.pyplot as plt
 from functools import partial
 import numpy as np
-from numba import njit, prange
-from plotoptix import TkOptiX
+
+from plotoptix import NpOptiX as OptiX
 from plotoptix.materials import m_plastic
+import logging
+import os
+from threading import Event
+
+logger = logging.getLogger(__name__)
+ACCUM_DONE = Event()  # <-- signal when image is written
 
 
-def init(rt: TkOptiX):
+def init(rt):
 
     max_frames = 256
     rt.set_param(
@@ -39,16 +42,20 @@ def init(rt: TkOptiX):
             [0.1298, 0.1258, 0.2548],
         ]
     )
-
-    dir = "../structures/"
+    parent = os.path.abspath(os.path.dirname(__file__))
+    struct_dir = os.path.join(parent, "..", "structures")
     N_vals = [12, 42, 162, 642, 2562]
     a_vals = np.zeros_like(N_vals, dtype=float)
 
     blobs = np.empty((np.sum(N_vals), 3))
     for i, N in enumerate(N_vals):
-        struct_params, cfg = load_cfg(dir + f"shell_N_{N}.csv")
+        fname = os.path.join(struct_dir, f"shell_N_{N}.csv")
+        if not os.path.exists(fname):
+            logger.error("Structure file not found: %s", fname)
+            raise FileNotFoundError(f"Structure file not found: {fname}")
+        struct_params, cfg = load_cfg(fname)
         a_vals[i] = 0.5 * struct_params["sep"]
-        start = sum(N_vals[0 : N_vals.index(N)])
+        start = sum(N_vals[0:i])
         end = start + N
         blobs[start:end, :] = cfg
 
@@ -67,8 +74,8 @@ def init(rt: TkOptiX):
         start = sum(N_vals[0:i])
         end = sum(N_vals[0 : i + 1])
         shift_blobs = blobs[start:end, :] + positions[i]
-        print("blob center", np.mean(shift_blobs, axis=0))
-        print("blob radius", a_vals[i])
+        logger.info("blob center %s", np.mean(shift_blobs, axis=0))
+        logger.info("blob radius %s", a_vals[i])
         rt.set_data(
             f"blobs_{i}",
             mat="plastic",
@@ -135,22 +142,25 @@ def load_cfg(file_name):
     return params, cfg
 
 
-def main():
-
-    out_fname = "rigid_spheres.png"
+def main(out_fname="rigid_spheres.png"):
 
     initialize = partial(init)
     write_image_to_file = partial(save_image, fname=out_fname)
 
-    optix = TkOptiX(
+    optix = OptiX(
         on_rt_accum_done=write_image_to_file,
         on_initialization=initialize,
         start_now=True,
         width=4140,
         height=1024,
     )
-    print("done")
+    ACCUM_DONE.wait()
+    optix.close()
+    logger.info("done")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     main()
