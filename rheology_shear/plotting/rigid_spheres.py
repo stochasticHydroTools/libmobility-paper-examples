@@ -101,9 +101,25 @@ def init(rt: TkOptiX):
 
 
 def save_image(rt, fname):
-    print(rt.get_camera("cam1"))
-    rt.save_image(fname)
-    print("rt completed!")
+    """Headless save: fetch OptiX framebuffer and write PNG/JPG with Pillow."""
+    from PIL import Image  # local import to keep dependencies minimal
+
+    logger.debug("camera: %s", rt.get_camera("cam1"))
+
+    img = rt.get_rt_output()  # expected uint8 array, shape (H, W, 4) or (H, W, 3)
+    if img is None:
+        raise RuntimeError("rt.get_rt_output() returned None (no framebuffer).")
+    if img.ndim != 3 or img.shape[-1] not in (3, 4):
+        raise ValueError(f"Unexpected image shape from OptiX: {img.shape}")
+    if img.shape[-1] == 4:
+        img = img[..., :3]
+    if img.dtype != np.uint8:
+        img = np.clip(img, 0, 255).astype(np.uint8)
+
+    Image.fromarray(img, mode="RGB").save(fname)
+    logger.info("Saved image to %s", os.path.abspath(fname))
+    logger.info("rt completed!")
+    ACCUM_DONE.set()  # signal completion
 
 
 def load_cfg(file_name):
