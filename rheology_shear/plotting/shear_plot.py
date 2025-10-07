@@ -2,12 +2,15 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import os
 
 # Module-level logger
 logger = logging.getLogger(__name__)
 
-REF_DIR = Path("extracted_data")
-DATA_DIR = Path("data")
+parent = os.path.abspath(os.path.dirname(__file__))
+shear_dir = os.path.abspath(os.path.join(parent, ".."))
+REF_DIR = Path(shear_dir + "/extracted_data")
+DATA_DIR = Path(shear_dir + "/data")
 
 N_RUNS = 3
 N_C = 5
