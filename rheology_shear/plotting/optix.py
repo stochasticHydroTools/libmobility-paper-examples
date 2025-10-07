@@ -113,7 +113,7 @@ def save_image(rt, fname):
     """Headless save: fetch OptiX framebuffer and write PNG/JPG with Pillow."""
     logger.debug("camera: %s", rt.get_camera("cam1"))
 
-    img = rt.get_rt_output()  # uint8 array, shape (H,W,4) or (H,W,3)
+    img = rt.get_rt_output()
     if img is None:
         raise RuntimeError("rt.get_rt_output() returned None (no framebuffer).")
     if img.ndim != 3 or img.shape[-1] not in (3, 4):
