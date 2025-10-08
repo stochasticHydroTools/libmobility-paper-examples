@@ -4,33 +4,38 @@ from libMobility import PSE
 from Rigid import RigidBody
 from scipy.sparse.linalg import LinearOperator
 import pyamg
-import time
 import json
+import logging
+import tqdm
+
+logger = logging.getLogger(__name__)
 
 struct_dir = os.path.dirname(os.path.abspath(__file__)) + "/structures/"
 sphere_dir = os.path.dirname(os.path.abspath(__file__)) + "/sphere_packings/configs/"
 
 
-def main():
+def main(save_blob_data=True):
+    """Main loop over different sphere packings and volume fractions.
+    Saves shear stress results to data/shear_stress_#.csv
 
+    Parameters
+    ----------
+    save_blob_data : bool, optional
+        If True, saves blob positions and per-blob stress to plotting/stress_per_blob.csv
+        and plotting/blobs.txt, by default True
+    """
     N_vals = [12, 42, 162, 642, 2562]
     phi_vals = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5])
     phi_sim = np.zeros((len(N_vals), len(phi_vals)))
     s_vals = np.zeros((len(N_vals), len(phi_vals)))
 
-    save_blob_data = False  # set to True to save blob-wise data for 3d stress plot
-    start = time.time()
-    for i, N in enumerate(N_vals):
-        print(f"------------------- Running N ={N} -------------------")
+    for i, N in tqdm.tqdm(enumerate(N_vals), total=len(N_vals)):
         for j, phi in enumerate(phi_vals):
             stress, phi_exact = run(phi, N, save_blob_data)
             s_vals[i, j] = stress
             phi_sim[i, j] = phi_exact
-        print(f"N={N} stress:", s_vals[i, :])
-
-    end = time.time()
-    print(f"Total simulation time: {end - start:.2f} seconds")
-
+        # logger.info("N=%s stress: %s", N, s_vals[i, :])
+        tqdm.tqdm.write(f"N={N} stress: {s_vals[i, :]}")
     save_data(phi_sim, s_vals, N_vals)
 
 
@@ -56,7 +61,7 @@ def run(phi, N, save_blob_data=False):
     N_rigid = np.shape(sphere_pos)[0]
     N_blobs = N_rigid * blobs_per_body
     phi_exact = N_rigid * (4 / 3) * np.pi * rigid_rh**3 / (L[0] * L[1] * L[2])
-    print(f"phi exact: {phi_exact:.4f}")
+    logger.debug("phi exact: %.4f", phi_exact)
 
     gamma = 1.0
     solver = PSE("periodic", "periodic", "periodic")
@@ -112,7 +117,7 @@ def run(phi, N, save_blob_data=False):
         restrt=None,
         residuals=res_list,
     )
-    print("iter count:", len(res_list))
+    logger.info("iter count: %d", len(res_list))
     Sol *= RHS_norm
     lam = Sol[0 : 3 * N_blobs].reshape((N_blobs, 3))
 
@@ -142,7 +147,7 @@ def run(phi, N, save_blob_data=False):
         plot_params = {"a": a, "n_per_body": blobs_per_body}
         json.dump(plot_params, open(dir + "plot_params.json", "w"))
 
-    print(S)
+    logger.debug("S matrix: %s", S)
     return S[0, 1] / gamma**2, phi_exact
 
 
@@ -193,7 +198,7 @@ def load_cfg(file_name):
 
 def save_data(phi_sim, s_vals, N_vals):
 
-    save_matrix = np.zeros((len(phi_sim), len(N_vals) + 1))
+    save_matrix = np.zeros((phi_sim.shape[1], len(N_vals) + 1))
     save_matrix[:, 0] = phi_sim[0, :]
     save_matrix[:, 1:] = s_vals.T
 
@@ -206,7 +211,7 @@ def save_data(phi_sim, s_vals, N_vals):
             path_found = True
         else:
             i += 1
-    print(f"Saving to {fname}")
+    logger.info("Saving to %s", fname)
 
     np.savetxt(
         fname,
@@ -216,9 +221,12 @@ def save_data(phi_sim, s_vals, N_vals):
         header="phi," + ",".join([f"N={N}" for N in N_vals]),
     )
 
-    print("phi_sim:", phi_sim)
-    print("s_vals:", s_vals)
+    logger.info("phi_sim: %s", phi_sim)
+    logger.info("s_vals: %s", s_vals)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     main()
