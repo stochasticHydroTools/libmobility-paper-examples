@@ -24,7 +24,8 @@ def main():
     nx_start = 21
     nz_start = 70
 
-    n_runs = 4
+    # set this to how many data sets you have. expected to be the same across all params (mass fact, isDeterministic)
+    n_runs = 2
     mass_facts = [1.0, 0.1]
     for mass_fact in mass_facts:
 
@@ -76,10 +77,10 @@ def get_tstar_distributions(
             dir = utils.get_simulation_dir(mass_fact, isDeterministic)
 
             np.savetxt(
-                out_dir + f"pos_t_star_{i}.csv", pos_t_star, delimiter=",", fmt="%.6f"
+                out_dir + f"pos_t_star.csv", pos_t_star, delimiter=",", fmt="%.6f"
             )
             np.savetxt(
-                out_dir + f"pos_2t_star_{i}.csv",
+                out_dir + f"pos_2t_star.csv",
                 pos[2 * t_star_ind, :],
                 delimiter=",",
                 fmt="%.6f",
