@@ -1,16 +1,22 @@
-import json
-import matplotlib
-import matplotlib.pyplot as plt
 from functools import partial
 import numpy as np
 from numba import njit, prange
-from plotoptix import TkOptiX
 from plotoptix.materials import m_plastic
+import matplotlib.pyplot as plt
+import matplotlib.colors
+from threading import Event
+from PIL import Image
+import logging
+import os
+import json
+
+ACCUM_DONE = Event()
+logger = logging.getLogger(__name__)
 
 
-def init(rt: TkOptiX):
+def init(rt):
 
-    max_frames = 128
+    max_frames = 256
     rt.set_param(
         min_accumulation_step=4,
         max_accumulation_frames=max_frames,
@@ -33,13 +39,14 @@ def init(rt: TkOptiX):
 
     scale_fact = 1.0
 
-    fname = "stress_per_blob.csv"
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    fname = os.path.join(current_dir, "stress_per_blob.csv")
     dat = np.loadtxt(fname, delimiter=",", skiprows=2)
     blobs = dat[:, 0:3]
     blobs = np.reshape(blobs, (-1, 3))
     S_blob = dat[:, 3]
 
-    plot_params = json.load(open("plot_params.json", "r"))
+    plot_params = json.load(open(os.path.join(current_dir, "plot_params.json"), "r"))
     a = plot_params["a"]
     blobs_per_body = plot_params["n_per_body"]
 
@@ -50,17 +57,17 @@ def init(rt: TkOptiX):
     shift = 0.3  # shifting like this puts a nice cut on the corner
     blobs = blobs + np.array([shift, shift, shift])
     blobs = periodize_r_vecs(blobs, np.array([1.0, 1.0, 1.0]), blobs.shape[0])
-
-    print(
-        "max blob coords",
+    blobs[:, 2] -= 0.25  # flatten in z for better visualization
+    logger.info(
+        "max blob coords %s min blob coords %s",
         np.max(blobs, axis=0),
-        "min blob coords",
         np.min(blobs, axis=0),
     )
-    print("max stress", np.max(S_plot), "min stress", np.min(S_plot))
+    logger.info("max stress %s min stress %s", np.max(S_plot), np.min(S_plot))
 
     cmap = plt.get_cmap("magma")
-    norm = matplotlib.colors.Normalize(vmin=S_plot.min(), vmax=S_plot.max())
+    # chopping off the top and bottom of the colormap gives a nice effect
+    norm = matplotlib.colors.Normalize(vmin=S_plot.min() + 0.3, vmax=S_plot.max() - 0.3)
     colors = np.zeros_like(blobs)
     for i, cval in enumerate(S_plot):
         colors[i, :] = cmap(norm(cval))[0:3]
@@ -80,12 +87,12 @@ def init(rt: TkOptiX):
     rt.setup_camera(
         "cam1",
         cam_type="DoF",
-        eye=[1.18265343, 1.22631025, 1.190259],
-        target=[1.0, 1.0, 0.7],
-        up=[-0.371450275, -0.4319413, 0.8218586],
+        eye=[1.47710538, 1.40805268, 0.904297769],
+        target=[1.06813073, 1.01545882, 0.5859939],
+        up=[-0.371695131, -0.31949982, 0.8716436],
         aperture_radius=0.001,
-        fov=105.0,
-        focal_scale=0.4,
+        fov=80.0,
+        focal_scale=20.0,
     )
 
 
@@ -103,27 +110,50 @@ def periodize_r_vecs(r_vecs_np, L, Nb):
 
 
 def save_image(rt, fname):
-    print(rt.get_camera("cam1"))
-    rt.save_image(fname)
-    print("rt completed!")
+    """Headless save: fetch OptiX framebuffer and write PNG/JPG with Pillow."""
+    logger.debug("camera: %s", rt.get_camera("cam1"))
+
+    img = rt.get_rt_output()
+    if img is None:
+        raise RuntimeError("rt.get_rt_output() returned None (no framebuffer).")
+    if img.ndim != 3 or img.shape[-1] not in (3, 4):
+        raise ValueError(f"Unexpected image shape from OptiX: {img.shape}")
+    if img.shape[-1] == 4:
+        img = img[..., :3]
+    if img.dtype is not np.uint8:
+        img = np.clip(img, 0, 255).astype(np.uint8)
+
+    Image.fromarray(img, mode="RGB").save(fname)
+    logger.info("Saved image to %s", os.path.abspath(fname))
+    ACCUM_DONE.set()
+    logger.info("rt completed!")
 
 
-def main():
-
-    out_fname = "TEMP.png"
-
+def main(out_fname="optix_scene.png"):
     initialize = partial(init)
     write_image_to_file = partial(save_image, fname=out_fname)
 
-    optix = TkOptiX(
+    # set to false for interactive window
+    headless = True
+    if headless:
+        from plotoptix import NpOptiX as OptiX
+    else:
+        from plotoptix import TkOptiX as OptiX
+    optix = OptiX(
         on_rt_accum_done=write_image_to_file,
         on_initialization=initialize,
         start_now=True,
-        width=4140,
+        width=1024,
         height=1024,
     )
-    print("done")
+    if headless:
+        ACCUM_DONE.wait()
+        optix.close()
+        logger.info("done")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     main()

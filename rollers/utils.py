@@ -3,6 +3,7 @@ import numpy as np
 from numba import njit, prange
 import json
 import os
+import logging
 
 
 def get_simulation_dir(mass_fact, isDeterministic, runIndex=None, loadOnly=False):
@@ -24,7 +25,9 @@ def get_simulation_dir(mass_fact, isDeterministic, runIndex=None, loadOnly=False
     while not dirFound and runIndex is not None:
         dir_run = dir + f"{runIndex}/"
         if os.path.isdir(dir_run) and not loadOnly:
-            print(f"Directory {dir_run} already exists, trying again...")
+            logging.getLogger(__name__).warning(
+                "Directory %s already exists, trying again...", dir_run
+            )
             runIndex += 1
             continue
 
@@ -43,7 +46,7 @@ def save_params_json(params, out_dir=None):
     params["job_started_at"] = str(np.datetime64("now"))
     with open(fname, "w") as f:
         json.dump(params, f, indent=4)
-    print("Saved parameters to params.json")
+    logging.getLogger(__name__).info("Saved parameters to %s", fname)
 
 
 def build_neighbor_list(r_vectors, r_cut, eps=0.0):
