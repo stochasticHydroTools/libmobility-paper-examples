@@ -3,7 +3,6 @@ from math import floor
 import subprocess
 import logging
 
-# Module-level logger
 logger = logging.getLogger(__name__)
 
 # this code requires the C++ code linked below to be compiled within the directory C++

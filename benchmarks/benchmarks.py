@@ -4,6 +4,9 @@ import cupy as cp
 import timeit
 import functools
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Cache the results to avoid recomputing
@@ -63,7 +66,7 @@ def init_solver(l, use_solver="DPStokes", angular=False):
         psi = max(
             1.25, 4.0 * np.sqrt(-np.log(1e-4)) / l
         )  # Ensure psi is not larger than half the box size
-        print(f"Using psi: {psi:.4f} for PSE_split1_25")
+        logger.info("Using psi: %.4f for PSE_split1_25", psi)
         solver.setParameters(
             Lx=float(l), Ly=float(l), Lz=float(l), psi=psi, shearStrain=0.0
         )
@@ -74,7 +77,7 @@ def init_solver(l, use_solver="DPStokes", angular=False):
         psi = max(
             2.5, 4.0 * np.sqrt(-np.log(1e-4)) / l
         )  # Ensure psi is not larger than half the box size
-        print(f"Using psi: {psi:.4f} for PSE_split2_5")
+        logger.info("Using psi: %.4f for PSE_split2_5", psi)
         solver.setParameters(
             Lx=float(l), Ly=float(l), Lz=float(l), psi=psi, shearStrain=0.0
         )
@@ -109,8 +112,11 @@ def profile_noise(density, l, use_solver="DPStokes", angular=False):
         raise ValueError(
             f"Number of particles ({numberParticles}) exceeds the limit for {use_solver} solver."
         )
-    print(
-        f"Number of particles: {numberParticles}, box size: {l:.2f}, density: {density:.3f}"
+    logger.info(
+        "Number of particles: %d, box size: %.2f, density: %.3f",
+        numberParticles,
+        l,
+        density,
     )
 
     solver.setPositions(pos)
@@ -159,7 +165,7 @@ def generate_benchmark_data(file_path: str) -> None:
             "NBody",
             "NBodyWall",
         ]:
-            print(f"Using solver: {s}")
+            logger.info("Using solver: %s", s)
             for d in np.logspace(-3, -1, 3):
                 for l in [8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0]:
                     # Look for the current solver, density, and box size
@@ -171,15 +177,20 @@ def generate_benchmark_data(file_path: str) -> None:
                         & (timings_ds["gpu"] == current_gpu_name)
                     ).any()
                     if is_in_ds:
-                        print(f"Skipping already computed: {s}, {d:.3f}, {l:.2f}")
+                        logger.info(
+                            "Skipping already computed: %s, %.3f, %.2f", s, d, l
+                        )
                     else:
                         try:
                             number_particles, time_deterministic = profile_noise(
                                 d, l, use_solver=s, angular=angular
                             )
                         except:
-                            print(
-                                f"Error profiling {s} with density {d:.3f} and box size {l:.2f}"
+                            logger.exception(
+                                "Error profiling %s with density %.3f and box size %.2f",
+                                s,
+                                d,
+                                l,
                             )
                             data.append(
                                 [s, d, None, l, None, current_gpu_name, angular]
@@ -196,8 +207,10 @@ def generate_benchmark_data(file_path: str) -> None:
                                     angular,
                                 ]
                             )
-                            print(
-                                f"Box size: {l:.2f}, Time deterministic: {time_deterministic:.4f} s"
+                            logger.info(
+                                "Box size: %.2f, Time deterministic: %.4f s",
+                                l,
+                                time_deterministic,
                             )
                         timings = pd.DataFrame(
                             data,
