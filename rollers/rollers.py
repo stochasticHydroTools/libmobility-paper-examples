@@ -92,10 +92,15 @@ def run(mass_fact, isDeterministic, runNumber=None):
         torque_fact=torque_fact,
         mg=m * g,
         N=N_colloids,
-        # r_cut=r_cut,
     )
+    # these times should be enough to reach 2t*
+    t_final_lookup = {
+        1.0: {True: 30, False: 35},
+        0.1: {True: 70, False: 100},
+    }
 
-    t_final = 0.2
+    t_final = t_final_lookup[mass_fact][isDeterministic]
+
     N_steps = int(np.ceil(t_final / dt))
     t_save = 0.1
     n_save = int(np.round(t_save / dt))
@@ -220,7 +225,6 @@ def blob_blob_sterics(
     force = np.zeros((N, 3))
 
     for i in prange(N):
-        # for j in range(N):
         for kk in range(offsets[i + 1] - offsets[i]):
             j = list_of_neighbors[offsets[i] + kk]
 

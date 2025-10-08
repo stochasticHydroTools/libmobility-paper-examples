@@ -7,12 +7,13 @@ import logging
 
 
 def get_simulation_dir(mass_fact, isDeterministic, runIndex=None, loadOnly=False):
+    dir = os.path.abspath(os.path.dirname(__file__)) + "/output_data/"
     if mass_fact == 1.0:
-        dir = "hg15/"
+        dir += "hg15/"
     elif mass_fact == 0.1:
-        dir = "hg61/"
+        dir += "hg61/"
     elif mass_fact == 0.2:
-        dir = "hg35/"
+        dir += "hg35/"
     else:
         raise ValueError("Unknown mass factor")
 
