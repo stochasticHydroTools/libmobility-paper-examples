@@ -79,12 +79,12 @@ def create_solvers(
     return solver, lub
 
 
-def get_simulation_dir(solver, N, L) -> str:
+def get_simulation_dir(solver, N, L, t_final) -> str:
     dirFound = False
     runNumber = 0
     dir = ""
     while not dirFound:
-        dir = f"output/solver_{solver}_N_{N}_L_{int(L)}_run_{runNumber}/"
+        dir = f"output/solver_{solver}_N_{N}_L_{int(L)}_t_final_{t_final}_run_{runNumber}/"
         if os.path.isdir(dir):
             print(f"Directory {dir} already exists, trying again...")
             runNumber += 1
