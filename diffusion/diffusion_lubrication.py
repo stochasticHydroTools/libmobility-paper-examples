@@ -13,13 +13,11 @@ import pyamg
 from tqdm import trange
 
 
-def main():
+
+def main(Lx, Ly, t_save, t_final):
     a = 1.395
     mg = 0.0592  # m*g, in pN
 
-    L_fact = 1.0
-    Lx = 640.0 * L_fact
-    Ly = 640.0 * L_fact
     L = np.array([Lx, Ly, 0], dtype=np.float64)
 
     kbt = 0.0041419464  # aJ
@@ -29,10 +27,9 @@ def main():
     phi = 0.114
 
     tau = 6 * np.pi * eta * a**3 / kbt
-    dt = 0.05
+    dt = 0.125
     print(f"diffusion time: {tau}, dt: {dt}")
-    T_final = 3600 * 8
-    n_steps = int(np.ceil(T_final / dt))
+    n_steps = int(np.ceil(t_final / dt))
     print(f"Number of steps: {n_steps}")
     t_save = 0.5
     n_save = int(np.ceil(t_save / dt))
@@ -60,7 +57,7 @@ def main():
     )
     is_periodic = solver_name != "NBody"
 
-    output_dir = utils.get_simulation_dir(solver=solver_name, N=N, L=Lx)
+    output_dir = utils.get_simulation_dir(solver=solver_name, N=N, L=Lx, t_final=t_final)
     print(f"Output directory: {output_dir}")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -98,7 +95,7 @@ def main():
         "firm_delta": firm_delta,
         "lub_cutoff": lub_cutoff,
         "dt": dt,
-        "T_final": T_final,
+        "T_final": t_final,
         "n_steps": n_steps,
         "r_cut": r_cut,
         "n_cutoff": n_cutoff,
@@ -398,4 +395,13 @@ def place_colloids(phi, L, a, mg, kbt):
 
 
 if __name__ == "__main__":
-    main()
+    main(
+        Lx = 2560, Ly = 2560,
+        t_save = 1,
+        t_final = 60 * 60
+    )
+    main(
+        Lx = 2560, Ly = 2560,
+        t_save = 32,
+        t_final = 8 * 60 * 60
+    )
