@@ -9,7 +9,7 @@ indexes_to_plot = {
 }
 
 for source in ['short', 'long']:
-    data = np.load(f'isf_{source}.npz')
+    data = np.load(f'output/isf_{source}.npz')
 
     F = data['F']
     k = data['k']
@@ -38,5 +38,5 @@ plt.legend()
 plt.ylim(0.8, 5)
 plt.xlim()
 
-plt.savefig('D_of_k.png')
-print('saved D_of_k.png')
+plt.savefig('output/D_of_k.png')
+print('saved output/D_of_k.png')

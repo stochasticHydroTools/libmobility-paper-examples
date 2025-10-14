@@ -21,7 +21,8 @@ def main(Lx, Ly, t_save, t_final):
     L = np.array([Lx, Ly, 0], dtype=np.float64)
 
     kbt = 0.0041419464  # aJ
-    eta = 1.4e-3
+    eta = 1.4e-3 # Pa s = kg m / s
+
     h_g = a + (kbt / mg)
     print("gravity height: ", h_g - a)
     phi = 0.114
@@ -31,8 +32,8 @@ def main(Lx, Ly, t_save, t_final):
     print(f"diffusion time: {tau}, dt: {dt}")
     n_steps = int(np.ceil(t_final / dt))
     print(f"Number of steps: {n_steps}")
-    t_save = 0.5
-    n_save = int(np.ceil(t_save / dt))
+    assert t_save / dt % 1 == 0, 't_save was not a multiple of dt'
+    n_save = int(t_save / dt)
     print(f"saving every: {n_save}")
 
     r_vecs = place_colloids(phi, L, a, mg, kbt)
@@ -114,8 +115,8 @@ def main(Lx, Ly, t_save, t_final):
     r_vecs = r_vecs.flatten()
     for step in trange(n_steps, mininterval=20.0, desc="Simulation progress"):
 
-        print("zmax: ", np.max(r_vecs[2::3]) / a, "zmin: ", np.min(r_vecs[2::3]) / a)
-        print("percent overlapping wall", 100 * np.sum(r_vecs[2::3] < a) / N)
+        # print("zmax: ", np.max(r_vecs[2::3]) / a, "zmin: ", np.min(r_vecs[2::3]) / a)
+        # print("percent overlapping wall", 100 * np.sum(r_vecs[2::3] < a) / N)
 
         solver.setPositions(r_vecs)
 
@@ -164,11 +165,11 @@ def main(Lx, Ly, t_save, t_final):
             )
             x0 = deepcopy(temp_r)
 
-        if step % n_time == 0:
-            end = time.time()
-            elapsed = end - step_start
-            print(f"time to simulate {n_time*dt} seconds: {elapsed:.2f}s")
-            step_start = time.time()
+        # if step % n_time == 0:
+        #     end = time.time()
+        #     elapsed = end - step_start
+        #     print(f"time to simulate {n_time*dt} seconds: {elapsed:.2f}s")
+        #     step_start = time.time()
 
         if step % n_save == 0:
             row = np.concatenate(([t_current], r_vecs.flatten()))
@@ -254,7 +255,7 @@ def blob_external_force_xy_potential_confinement_numba(
 ):
     """
     This function computes the force on a blob in a confinement potential.
-    r_vectors are assumed to have 0 <= x < Lx and 0 <= y < Ly.
+    The potential has a flat bottom for 0 <= x < Lx and 0 <= y < Ly and increases quadratically outside
     """
     assert np.isfinite(kT)
 
