@@ -81,6 +81,6 @@ for source in [
 
     t = t * metadata['t_save']
 
-    np.savez(f'isf_{source}.npz', F=isf_results.F, k=isf_results.k, t=t,
+    np.savez(f'output/isf_{source}.npz', F=isf_results.F, k=isf_results.k, t=t,
              time_step=metadata['n_save'], msd=msd_xy, a=metadata['a'])
-    print(f'saved isf_{source}.npz')
+    print(f'saved output/isf_{source}.npz')
