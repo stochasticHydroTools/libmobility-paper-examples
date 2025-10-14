@@ -1,6 +1,10 @@
 import numpy as np
 from math import floor
 import subprocess
+import logging
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 # this code requires the C++ code linked below to be compiled within the directory C++
 # code: https://torquatocpanel.deptcpanel.princeton.edu/links-and-codes/sphere-packings-registration/
@@ -39,7 +43,7 @@ def write_conf(phi):
     a = 0.1
 
     N = floor(phi * L[0] * L[1] * L[2] / ((4 / 3) * np.pi * a**3))
-    print(f"generating conf for {N} particles")
+    logger.info("generating conf for %d particles", N)
     with open("C++/input", "w") as f:
         f.write("int eventspercycle = 20;\n")
         f.write(f"int N = {N};\n")

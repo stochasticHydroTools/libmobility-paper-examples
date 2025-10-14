@@ -17,6 +17,10 @@ dependencies:
   - numba
   - pyvista
   - pyamg
+  - jupyter
+  - pythonnet
+  - mono
+  - tqdm
   # Rigid dependencies below
   - nanobind
   - cxx-compiler
@@ -28,4 +32,5 @@ dependencies:
   - tbb
   - tqdm
   - scipy<=1.15
+    - plotoptix
 
