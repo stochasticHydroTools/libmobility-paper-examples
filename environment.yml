@@ -29,6 +29,7 @@ dependencies:
   - pip:
     - ./rheology_shear/deps/Rigid_Body_Light
     # - plotoptix # uncomment if you want to run the optix.py plotting code in the shear example
+    - git+https://github.com/adamrobcarter/scattering_functions@v0.1.2
   - tbb
   - tqdm
   - scipy<=1.15
