@@ -82,9 +82,9 @@ def run(phi, N, save_blob_data=False):
 
         mf = solver.Mdot(forces=lam)[0].flatten()
         kt_U = cb.K_dot(U).flatten()
-        out[0:sz] = -mf + kt_U
+        out[0:sz] = mf - kt_U
 
-        out[sz:] = cb.KT_dot(lam).flatten()
+        out[sz:] = -cb.KT_dot(lam).flatten()
 
         return out
 
@@ -98,7 +98,7 @@ def run(phi, N, save_blob_data=False):
     for i in range(N_rigid):
         relative_r[i * blobs_per_body : (i + 1) * blobs_per_body] -= sphere_pos[i]
 
-    r_y = -gamma * relative_r[:, 1]
+    r_y = gamma * relative_r[:, 1]
     RHS = np.zeros(N_size, dtype="float32")
     for i in range(N_blobs):
         RHS[3 * i] = r_y[i]
