@@ -1,6 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import logging
+import os
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 """
 Computes t_star by computing PSD and creates a plot of the PSD integral over time. Useful for finding k_min cutoffs since you can test to see where the PSD integral starts to plateau/decay.
@@ -8,17 +13,21 @@ Computes t_star by computing PSD and creates a plot of the PSD integral over tim
 
 
 def main():
+    parent = os.path.abspath(os.path.dirname(__file__))
+    # change these to test different datasets
+    grav_height = "hg15"
+    isDet = True
 
-    dir = "../hg15/deterministic/"
-    # dir = "../hg15/stochastic/"
-    # dir = "../hg61/stochastic/"
-    # dir = "../hg61/deterministic/"
-    print(f"Using directory: {dir}")
+    det_str = "deterministic/" if isDet else "stochastic/"
 
-    plot_dir = dir + "plots/"
+    dir = parent + f"/../output_data/{grav_height}/{det_str}"
+    logger.info("Using directory: %s", dir)
+
+    plot_dir = parent + "/plots/"
     Path(plot_dir).mkdir(parents=True, exist_ok=True)
 
-    k_min = 0.1
+    # try adjusting k_min if t* seems off
+    k_min = 0.15 if grav_height == "hg15" else 0.10
     k_max = 0.25
     cutoff_percentile = 30.0
 
@@ -120,8 +129,8 @@ def get_t_star(pos, time, k_min, k_max, n_steps, percentile, plot_file=None):
         )
         plt.title("Integral of Power Spectral Density over Time")
         plt.grid()
-        print(f"Saving plot to {plot_file}")
-        plt.savefig(plot_file, dpi=300)
+    logger.info("Saving plot to %s", plot_file)
+    plt.savefig(plot_file, dpi=300)
 
     return t_star_ind, t_star
 
