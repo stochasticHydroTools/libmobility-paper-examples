@@ -1,24 +1,28 @@
+from typing import List
 import numpy as np
 from numba import njit, prange
 from functools import partial
 from copy import deepcopy
 from pathlib import Path
-import time
+import logging
+
+from tqdm import tqdm
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 from libMobility import NBody
 
 import utils
 
 
-def main():
-    n_runs = 4
-
-    isDeterministic = False
-    mass_fact = 1.0  # for grav height 1.5
-    # mass_fact = 0.1  # for grav_height 6.0
-    for i in range(n_runs):
-        print("running", i)
-        run(mass_fact=mass_fact, isDeterministic=isDeterministic, runNumber=i)
+def main(mass_facts: List[float] = [0.1, 1.0], n_runs: int = 4):
+    for mass_fact in tqdm(mass_facts, desc="mass factor"):
+        for isDeterministic in tqdm([True, False], desc="deterministic"):
+            for i in tqdm(range(n_runs), desc="runs"):
+                run(mass_fact=mass_fact, isDeterministic=isDeterministic, runNumber=i)
 
 
 """
@@ -30,11 +34,10 @@ References:
 
 
 def run(mass_fact, isDeterministic, runNumber=None):
-
     output_dir = utils.get_simulation_dir(
         mass_fact, isDeterministic, runIndex=runNumber
     )
-    print("output dir:", output_dir)
+    logger.info("output dir: %s", output_dir)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     a = 0.656  # um
@@ -47,7 +50,7 @@ def run(mass_fact, isDeterministic, runNumber=None):
 
     m = mass_fact * 1.27e-9  # milligrams
     h_g = a + (kbt / (m * g))
-    print(h_g)
+    logger.info("grav height h_g: %s", h_g)
 
     Lx = 60 * a
     Ly = 4915 * a
@@ -89,15 +92,20 @@ def run(mass_fact, isDeterministic, runNumber=None):
         torque_fact=torque_fact,
         mg=m * g,
         N=N_colloids,
-        # r_cut=r_cut,
     )
+    # these times should be enough to reach 2t*
+    t_final_lookup = {
+        1.0: {True: 30, False: 35},
+        0.1: {True: 70, False: 100},
+    }
 
-    t_final = 0.2
+    t_final = t_final_lookup[mass_fact][isDeterministic]
+
     N_steps = int(np.ceil(t_final / dt))
     t_save = 0.1
     n_save = int(np.round(t_save / dt))
-    print("n steps:", N_steps)
-    print("saving every ", n_save)
+    logger.info("n steps: %d", N_steps)
+    logger.info("saving every %d", n_save)
 
     params = {
         "N_colloids": N_colloids,
@@ -129,11 +137,9 @@ def run(mass_fact, isDeterministic, runNumber=None):
     forces, torques = F_calc(r_vecs, offsets, neighbor_list)
     v_prev, _ = solver.Mdot(forces=forces, torques=torques)
 
-    start = time.time()
-
-    while t_current < t_final:
+    for step in tqdm(range(N_steps), desc="simulation"):
+        t_current = step * dt
         if step % n_save == 0:
-            print(f"saving at step {step}")
             with open(out_file, "a") as f:
                 row = np.concatenate(([t_current], r_vecs.flatten()))
                 np.savetxt(f, row.reshape(1, -1), fmt="%.8f", delimiter=",")
@@ -145,27 +151,17 @@ def run(mass_fact, isDeterministic, runNumber=None):
         if not isDeterministic:
             sqrt_m, _ = solver.sqrtMdotW()
             div_m, _ = solver.divM()
-
             r_vecs += np.sqrt(2 * kbt * dt) * sqrt_m  # stochastic velocity
-
             v_det += kbt * div_m  # add drift to deterministic term
 
         r_vecs += dt * (1.5 * v_det - 0.5 * v_prev)
-
         v_prev = v_det
-
-        step += 1
-        t_current += dt
-
         max_delta_pos = np.max(np.linalg.vector_norm(r_vecs - x0, axis=1))
         if max_delta_pos > delta * a:
             offsets, neighbor_list = utils.build_neighbor_list(
                 r_vecs, r_cut + delta * a
             )
             x0 = deepcopy(r_vecs)
-
-    end = time.time()
-    print("simulation finished in", end - start, "seconds")
 
 
 def calc_force_and_torque(
@@ -229,7 +225,6 @@ def blob_blob_sterics(
     force = np.zeros((N, 3))
 
     for i in prange(N):
-        # for j in range(N):
         for kk in range(offsets[i + 1] - offsets[i]):
             j = list_of_neighbors[offsets[i] + kk]
 
