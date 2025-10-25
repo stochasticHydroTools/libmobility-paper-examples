@@ -13,7 +13,6 @@ import pyamg
 from tqdm import trange
 
 
-
 def main(Lx, Ly, t_save, t_final):
     a = 1.395
     mg = 0.0592  # m*g, in pN
@@ -225,12 +224,14 @@ def calc_force(
 
     # set L to zero for non-periodic sterics
     if solver_name == "NBody":
-        L = np.array([0.0, 0.0, 0.0])
+        L_sterics = np.array([0.0, 0.0, 0.0])
+    else:
+        L_sterics = L
 
     forces = np.zeros((N, 3))
     forces += blob_blob_sterics(
         r_vectors=r_vecs,
-        L=L,
+        L=L_sterics,
         a=a,
         repulsion_strength=repulsion_strength,
         debye_length=debye_length,
