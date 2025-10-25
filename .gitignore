@@ -18,3 +18,4 @@ electroosmotic_flow/grid_*.npy
 electroosmotic_flow/push*.npy
 electroosmotic_flow/*.svg
 figs/
+diffusion/output/
