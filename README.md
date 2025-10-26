@@ -18,10 +18,7 @@ $ conda activate libmobility-examples
 
 ### Running the examples
 
-This repository contains a directory for each example showcased in the article, namely:
-
-- `benchmarks/`: Contains a script that will gather some performance metrics and visualize them.
-
+This repository contains a directory for each example showcased in the article.
 
 ## References
 
