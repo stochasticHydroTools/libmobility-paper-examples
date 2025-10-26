@@ -2,8 +2,6 @@
 
 ##  Usage:  
 
-The project can be built and installed via CMake, or pip if the Python wrapper is needed.
-
 Start by cloning the repository:
 
 ```bash
