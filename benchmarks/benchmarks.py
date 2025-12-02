@@ -30,8 +30,17 @@ def pack_spheres_fcc(density, lbox, min_distance, disorder=0.0):
         positions = positions % lbox
     return positions[:N]
 
+def random_positions(density, lbox, z_limit=None):
+    N = int(density * lbox**3)
+    if N <= 0:
+        return np.empty((0, 3), dtype=np.float64)
+    positions = np.random.uniform(0, lbox, size=(N, 3))
+    if z_limit is not None:
+        positions[:, 2] = np.random.uniform(z_limit[0], z_limit[1], size=N)
+    return positions
 
-def init_solver(l, use_solver="DPStokes", angular=False):
+
+def init_solver(l, use_solver="DPStokes", angular=False, N=None):
     if use_solver == "DPStokes":
         if l > 256:
             raise ValueError("Size too high for DPStokes solver. ")
@@ -78,12 +87,30 @@ def init_solver(l, use_solver="DPStokes", angular=False):
         solver.setParameters(
             Lx=float(l), Ly=float(l), Lz=float(l), psi=psi, shearStrain=0.0
         )
+    elif use_solver == "PSE_split_custom":
+        solver = lm.PSE(
+            periodicityX="periodic", periodicityY="periodic", periodicityZ="periodic"
+        )
+        psi_val = 1.0 * N**(1 / 3) / l
+        psi = max(
+            psi_val, 4.0 * np.sqrt(-np.log(1e-4)) / l
+        )  # Ensure psi is not larger than half the box size
+        print(f"Using psi: {psi:.4f} for PSE_split_custom")
+        solver.setParameters(
+            Lx=float(l), Ly=float(l), Lz=float(l), psi=psi, shearStrain=0.0
+        )
 
     elif use_solver == "DPStokes_slit20":
         solver = lm.DPStokes(
             periodicityX="periodic", periodicityY="periodic", periodicityZ="two_walls"
         )
         solver.setParameters(Lx=l, Ly=l, zmin=-10, zmax=10)
+
+    elif use_solver == "DPStokes_slit10":
+        solver = lm.DPStokes(
+            periodicityX="periodic", periodicityY="periodic", periodicityZ="two_walls"
+        )
+        solver.setParameters(Lx=l, Ly=l, zmin=0, zmax=10)
     else:
         raise ValueError(f"Unknown solver: {use_solver}")
     solver.initialize(
@@ -95,14 +122,20 @@ def init_solver(l, use_solver="DPStokes", angular=False):
 
 
 def profile_noise(density, l, use_solver="DPStokes", angular=False):
-    solver = init_solver(l, use_solver, angular=angular)
 
-    precision = np.float32 if solver.precision == "float" else np.float64
-    pos = pack_spheres_fcc(density, l, 0.5, disorder=0.25).astype(precision)
+    # pos = pack_spheres_fcc(density, l, 0.5, disorder=0.25)
     if use_solver == "DPStokes_slit20":
-        # Remove all particles that are outside the slit (z < -9 or z > 9)
-        pos = pos[(pos[:, 2] > -9) & (pos[:, 2] < 9)]
+        # pos = pack_spheres_fcc(density, 20, 0.5, disorder=0.25)
+        pos = random_positions(density, l, z_limit=(0, 20))
+    elif use_solver == "DPStokes_slit10":
+        # pos = pack_spheres_fcc(density, 10, 0.5, disorder=0.25)
+        pos = random_positions(density, l, z_limit=(0, 10))
+    else:
+        pos = random_positions(density, l)
     numberParticles = pos.shape[0]
+    solver = init_solver(l, use_solver, angular=angular, N=numberParticles)
+    precision = np.float32 if solver.precision == "float" else np.float64
+    pos = pos.astype(precision)
     if numberParticles <= 0:
         return 0, 0.0
     if numberParticles > 2_000_000 and "NBody" in use_solver:
@@ -154,13 +187,19 @@ def generate_benchmark_data(file_path: str) -> None:
             "PSE",
             "DPStokes",
             "DPStokes_slit20",
-            "PSE_split1_25",
-            "PSE_split2_5",
+            # "PSE_split1_25",
+            # "PSE_split2_5",
             "NBody",
             "NBodyWall",
+            "PSE_split_custom",
+            # "DPStokes_slit10",
         ]:
+            if angular and "PSE" in s:
+                continue
             print(f"Using solver: {s}")
             for d in np.logspace(-3, -1, 3):
+                if d == 0.001:
+                    continue
                 for l in [8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0]:
                     # Look for the current solver, density, and box size
                     is_in_ds = (
@@ -171,15 +210,17 @@ def generate_benchmark_data(file_path: str) -> None:
                         & (timings_ds["gpu"] == current_gpu_name)
                     ).any()
                     if is_in_ds:
+                        # pass
                         print(f"Skipping already computed: {s}, {d:.3f}, {l:.2f}")
+                        continue
                     else:
                         try:
                             number_particles, time_deterministic = profile_noise(
                                 d, l, use_solver=s, angular=angular
                             )
-                        except:
+                        except ValueError as e:
                             print(
-                                f"Error profiling {s} with density {d:.3f} and box size {l:.2f}"
+                                f"Error profiling {s} with density {d:.3f} and box size {l:.2f}: {e}"
                             )
                             data.append(
                                 [s, d, None, l, None, current_gpu_name, angular]
