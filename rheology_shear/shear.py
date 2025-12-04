@@ -1,12 +1,13 @@
 import os
 import numpy as np
 from libMobility import PSE
-from Rigid import RigidBody
 from scipy.sparse.linalg import LinearOperator
 import pyamg
 import json
 import logging
 import tqdm
+import utils
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +29,26 @@ def main(save_blob_data=True):
     phi_vals = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5])
     phi_sim = np.zeros((len(N_vals), len(phi_vals)))
     s_vals = np.zeros((len(N_vals), len(phi_vals)))
+    runtimes = np.zeros((len(N_vals), len(phi_vals)))
+    iter_counts = np.zeros((len(N_vals), len(phi_vals)))
 
     for i, N in tqdm.tqdm(enumerate(N_vals), total=len(N_vals)):
         for j, phi in enumerate(phi_vals):
-            stress, phi_exact = run(phi, N, save_blob_data)
+            stress, phi_exact, runtime, iters = run(phi, N, save_blob_data)
             s_vals[i, j] = stress
             phi_sim[i, j] = phi_exact
+            runtimes[i, j] = runtime
+            iter_counts[i, j] = iters
         # logger.info("N=%s stress: %s", N, s_vals[i, :])
-        tqdm.tqdm.write(f"N={N} stress: {s_vals[i, :]}")
-    save_data(phi_sim, s_vals, N_vals)
+        # tqdm.tqdm.write(f"N={N} stress: {s_vals[i, :]}")
+    save_data(phi_sim, s_vals, N_vals, "shear_stress")
+    save_data(phi_sim, runtimes, N_vals, "runtime")
+    save_data(phi_sim, iter_counts, N_vals, "iter_counts")
 
 
 def run(phi, N, save_blob_data=False):
     struct_file = struct_dir + f"shell_N_{N}.csv"
-    struct_params, rigid_cfg = load_cfg(struct_file)
+    struct_params, rigid_cfg = utils.load_cfg(struct_file)
     sep, blobs_per_body, rigid_rh = (
         struct_params["sep"],
         struct_params["N"],
@@ -69,9 +76,9 @@ def run(phi, N, save_blob_data=False):
     solver.setParameters(shearStrain=0.0, Lx=L[0], Ly=L[1], Lz=L[2], psi=split)
     solver.initialize(hydrodynamicRadius=a, viscosity=eta_f)
 
-    blobs = place_blobs(sphere_pos, rigid_cfg)
+    blobs = utils.place_blobs(sphere_pos, rigid_cfg)
 
-    cb = initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta_f)
+    cb = utils.initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta_f)
     solver.setPositions(blobs)
 
     def apply_A(x):
@@ -102,6 +109,7 @@ def run(phi, N, save_blob_data=False):
     PC = LinearOperator((N_size, N_size), matvec=cb.apply_PC, dtype="float32")  # type: ignore
     tol = 1e-4
     res_list = []
+    start = time.time()
     (Sol, _) = pyamg.krylov.gmres(
         A,
         (RHS / RHS_norm),
@@ -112,6 +120,7 @@ def run(phi, N, save_blob_data=False):
         restrt=None,
         residuals=res_list,
     )
+    end = time.time()
     logger.info("iter count: %d", len(res_list))
     Sol *= RHS_norm
     lam = Sol[0 : 3 * N_blobs].reshape((N_blobs, 3))
@@ -143,40 +152,7 @@ def run(phi, N, save_blob_data=False):
         json.dump(plot_params, open(dir + "plot_params.json", "w"))
 
     logger.debug("S matrix: %s", S)
-    eta_h = S[0, 1] / gamma**2
-    return eta_h / eta_f, phi_exact
-
-
-def initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta):
-    N = sphere_pos.shape[0]
-    Q = np.repeat(np.array([[1.0, 0.0, 0.0, 0.0]]), N, axis=0)
-    cb = RigidBody(
-        rigid_cfg,
-        X=sphere_pos,
-        Q=Q,
-        a=a,
-        eta=eta,
-        dt=0.0,
-        wall_PC=False,
-        block_PC=False,
-    )
-
-    return cb
-
-
-def place_blobs(sphere_pos, rigid_cfg):
-    N = sphere_pos.shape[0]
-    N_per_body = rigid_cfg.shape[0]
-
-    blobs = np.zeros((N * N_per_body, 3))
-
-    for i in range(N):
-        sphere_blobs = rigid_cfg.copy()
-        center_i = sphere_pos[i]
-        sphere_blobs += center_i
-        blobs[i * N_per_body : (i + 1) * N_per_body] = sphere_blobs
-
-    return blobs
+    return S[0, 1] / gamma**2, phi_exact, end - start, len(res_list)
 
 
 def load_cfg(file_name):
@@ -192,17 +168,18 @@ def load_cfg(file_name):
     return params, cfg
 
 
-def save_data(phi_sim, s_vals, N_vals):
+def save_data(phi_sim, s_vals, N_vals, fname_prefix):
 
     save_matrix = np.zeros((phi_sim.shape[1], len(N_vals) + 1))
     save_matrix[:, 0] = phi_sim[0, :]
     save_matrix[:, 1:] = s_vals.T
 
-    dir = "data/"
+    self_path = os.path.dirname(os.path.abspath(__file__))
+    dir = self_path + "/data/"
     path_found = False
     i = 1
     while not path_found:
-        fname = dir + f"shear_stress_{i}.csv"
+        fname = dir + f"{fname_prefix}_{i}.csv"
         if not os.path.exists(fname):
             path_found = True
         else:
