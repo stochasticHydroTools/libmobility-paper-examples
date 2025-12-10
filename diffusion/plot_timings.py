@@ -17,7 +17,7 @@ def main():
 
     phi_vals = [0.05, 0.1, 0.15, 0.25, 0.35]
     ymax = 30
-    ymin = 2e-5
+    ymin = 3e-4
     cmap = cmocean.cm.curl
     color_step = 0.05
     color_start = 0.15
@@ -38,13 +38,13 @@ def main():
             linestyle="-",
             color=c1,
         )
-        jump = 0.25 if i >= 3 else 0.0
+        jump = 0.2 if i >= 2 else 0.0
         plt.text(
-            0.5 if i < 3 else 0.47,
+            0.5 if i < 2 else 0.47,
             0.05 + i * 0.1 + jump,
             f"$\\phi = ${phi}",
             transform=plt.gca().transAxes,
-            rotation=25 if i < 3 else 30,
+            rotation=25 if i < 2 else 45,
             fontsize=20,
             color=c1,
         )
@@ -70,10 +70,11 @@ def main():
     )
     plt.xscale("log")
     plt.yscale("log")
+    plt.xticks([100, 500, 1000, 2000, 3000], ["100", "500", "1000", "2000", "3000"])
     plt.ylim(top=ymax)
     ax = plt.gca()
     ax.set_aspect(np.log10(3000) / 14)
-    plt.xlabel("Box size, L")
+    plt.xlabel("Dimensionless box size, L/a")
     plt.ylabel("Runtime (s)")
     plt.grid(True, which="both", ls="--", lw=0.5)
     plt.tight_layout()
