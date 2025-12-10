@@ -8,6 +8,7 @@ dependencies:
 #  - cuda-version==12.9 # Uncomment if your GPU needs a specific CUDA version
   - libMobility<2
   - rigidBodyLight=v0.3.0
+  - libopenblas=*=*openmp*
   - numpy
   - cupy
   - scipy
@@ -17,6 +18,7 @@ dependencies:
   - cmap
   - numba
   - pyvista
+  - cmocean
   - pyamg
   - jupyter
   - pythonnet
