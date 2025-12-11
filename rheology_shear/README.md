@@ -3,10 +3,11 @@ To run, this example requires the use of icosphere configuration files and perio
 
 The `extracted_data/` directory contains reference data that was extracted from Figure 3 in the paper "Wang, Gang, Andrew M. Fiore, and James W. Swan. 2019. “On the Viscosity of Adhesive Hard Sphere Dispersions: Critical Scaling and the Role of Rigid Contacts.” Journal of Rheology 63 (2): 229–45. https://doi.org/10.1122/1.5063362."
 
-To generate data, run the main simulation file `shear.py`. There are three plotting codes contained within the `plotting/` directory:
+To generate data, run the main simulation file `shear.py`. There are four plotting codes contained within the `plotting/` directory:
 1. `shear_plot.py` will create the viscosity curves at different multiblob resolutions. `shear_plot.m` creates a similar plot but using matlab.
 2. `optix.py` will create the 3D visualization of blob-wise stress.
 3. `rigid_spheres.py` will create the visualization of the different rigid multiblob resolutions as the inset.
+4. `timing_plot.m` will recreate figure 8b from the libmobility paper.
 
 
 `shear.ipynb` is a pre-rendered notebook that runs all of the simulations and renders the results, by calling all of the above.

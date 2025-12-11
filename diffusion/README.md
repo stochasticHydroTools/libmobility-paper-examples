@@ -1,3 +1,5 @@
 ### Diffusion
 
 The main simulation file is `diffusion_lubrication.py`. Running it will create an output directory where positions of the diffusing colloids will be stored. The code is set up to handle both `DPStokes` and `NBody` simulations, but only `NBody` simulations were presented in the paper. Once the simulations have completed, run `calculate_isf.py` to calculate the intermediate scattering function, and `plot_D.py` to plot a graph of D(k) against k.
+
+The additional files `timings.py` and `plot_timings.py` can be used to create a figure like figure 8a from the libmobility paper. This may be useful to find the crossover point between NBody and DPStokes to decide which solver is faster for a given application.
