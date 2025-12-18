@@ -7,6 +7,7 @@ dependencies:
   - python
 #  - cuda-version==12.9 # Uncomment if your GPU needs a specific CUDA version
   - libMobility<2
+  - rigidBodyLight=v0.3.0
   - numpy
   - cupy
   - scipy
@@ -22,13 +23,8 @@ dependencies:
   - mono
   - tqdm
   - tbb
-  # Rigid dependencies below
-  - nanobind
-  - cxx-compiler
-  - eigen
   - pip
   - pip:
-    - ./rheology_shear/deps/Rigid_Body_Light
     - git+https://github.com/adamrobcarter/scattering_functions@v0.1.2
     - plotoptix
 
