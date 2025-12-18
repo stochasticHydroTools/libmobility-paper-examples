@@ -88,11 +88,6 @@ def run(phi, N, save_blob_data=False):
 
         return out
 
-    def apply_PC(x):
-        sz = 3 * N_blobs
-        out = cb.apply_PC(x[0:sz], x[sz : sz + 6 * N_rigid])
-        return out
-
     N_size = 3 * N_blobs + 6 * N_rigid
     relative_r = blobs.copy()
     for i in range(N_rigid):
@@ -104,7 +99,7 @@ def run(phi, N, save_blob_data=False):
         RHS[3 * i] = r_y[i]
     RHS_norm = np.linalg.norm(RHS)
     A = LinearOperator((N_size, N_size), matvec=apply_A, dtype="float32")  # type: ignore
-    PC = LinearOperator((N_size, N_size), matvec=apply_PC, dtype="float32")  # type: ignore
+    PC = LinearOperator((N_size, N_size), matvec=cb.apply_PC, dtype="float32")  # type: ignore
     tol = 1e-4
     res_list = []
     (Sol, _) = pyamg.krylov.gmres(
