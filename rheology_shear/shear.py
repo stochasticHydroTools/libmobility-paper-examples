@@ -53,7 +53,7 @@ def run(phi, N, save_blob_data=False):
     rigid_cfg *= rigid_radius_fact
 
     a = 0.5 * sep * rigid_radius_fact
-    eta = 1.0
+    eta_f = 1.0
     L = [1.0, 1.0, 1.0]
 
     sphere_file = sphere_dir + f"sphere_pack_{phi:0.3g}.txt"
@@ -67,11 +67,11 @@ def run(phi, N, save_blob_data=False):
     solver = PSE("periodic", "periodic", "periodic")
     split = 2 * N_blobs ** (1 / 3) / L[0]
     solver.setParameters(shearStrain=0.0, Lx=L[0], Ly=L[1], Lz=L[2], psi=split)
-    solver.initialize(hydrodynamicRadius=a, viscosity=eta)
+    solver.initialize(hydrodynamicRadius=a, viscosity=eta_f)
 
     blobs = place_blobs(sphere_pos, rigid_cfg)
 
-    cb = initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta)
+    cb = initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta_f)
     solver.setPositions(blobs)
 
     def apply_A(x):
@@ -82,9 +82,9 @@ def run(phi, N, save_blob_data=False):
 
         mf = solver.Mdot(forces=lam)[0].flatten()
         kt_U = cb.K_dot(U).flatten()
-        out[0:sz] = -mf + kt_U
+        out[0:sz] = mf - kt_U
 
-        out[sz:] = cb.KT_dot(lam).flatten()
+        out[sz:] = -cb.KT_dot(lam).flatten()
 
         return out
 
@@ -93,7 +93,7 @@ def run(phi, N, save_blob_data=False):
     for i in range(N_rigid):
         relative_r[i * blobs_per_body : (i + 1) * blobs_per_body] -= sphere_pos[i]
 
-    r_y = -gamma * relative_r[:, 1]
+    r_y = gamma * relative_r[:, 1]
     RHS = np.zeros(N_size, dtype="float32")
     for i in range(N_blobs):
         RHS[3 * i] = r_y[i]
@@ -143,7 +143,8 @@ def run(phi, N, save_blob_data=False):
         json.dump(plot_params, open(dir + "plot_params.json", "w"))
 
     logger.debug("S matrix: %s", S)
-    return S[0, 1] / gamma**2, phi_exact
+    eta_h = S[0, 1] / gamma**2
+    return eta_h / eta_f, phi_exact
 
 
 def initialize_rigid_solver(rigid_cfg, sphere_pos, a, eta):
