@@ -21,8 +21,7 @@ $ conda activate libmobility-examples
 This repository contains a directory for each example showcased in the article.
 
 ## References
-
-TODO: [INSERT PAPER REFERENCE WHEN WE HAVE A DOI]
+Fish, Ryker, Adam Carter, Pablo Diez-Silva, Rafael Delgado-Buscalioni, Raul P. Pelaez, and Brennan Sprinkle. “libMobility: A Python Library for Hydrodynamics at the Smoluchowski Level.” The Journal of Chemical Physics 164, no. 4 (2026): 044121. https://doi.org/10.1063/5.0304943.
 
 
 ## Contributing
